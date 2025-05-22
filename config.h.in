@@ -1,0 +1,111 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* "Default to mpi environment" */
+#undef DEFAULT_ENV_STRING
+
+/* "Default clock cycle parallelism" */
+#undef DEFAULT_EVENT_MANAGER_STRING
+
+/* "Default to basic block partition" */
+#undef DEFAULT_PARTITION_STRING
+
+/* "Default to mpi runtime" */
+#undef DEFAULT_RUNTIME_STRING
+
+/* "Shared-memory optimizations off" */
+#undef DISTRIBUTED_MEMORY
+
+/* Define to use C++14 language features */
+#undef HAVE_CXX14
+
+/* Define to use C++17 language features */
+#undef HAVE_CXX17
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the 'MPI_Init' function. */
+#undef HAVE_MPI_INIT
+
+/* Define to 1 if you have the <Python.h> header file. */
+#undef HAVE_PYTHON_H
+
+/* Define to 1 if you have the <sst/core/component.h> header file. */
+#undef HAVE_SST_CORE_COMPONENT_H
+
+/* Build with sst-elements */
+#undef HAVE_SST_ELEMENTS
+
+/* Define to 1 if you have the <sst/elements/merlin/router.h> header file. */
+#undef HAVE_SST_ELEMENTS_MERLIN_ROUTER_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* "working MPI not found" */
+#undef HAVE_VALID_MPI
+
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#undef LT_OBJDIR
+
+/* "the definition of the offsetof macro" */
+#undef OFFSET_OF_MACRO
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
+#undef STDC_HEADERS
+
+/* Point version number */
+#undef SUBSUBVERSION
+
+/* Minor version number */
+#undef SUBVERSION
+
+/* Version number of package */
+#undef VERSION
