@@ -6,12 +6,19 @@ AC_DEFUN([CHECK_CLANG], [
   have_clang=`$pyexe $srcdir/config_tools/get_clang $CXX`
   AC_MSG_RESULT([$have_clang])
 
-
   if test "X$have_clang" = "Xyes"; then
-    AC_SUBST([LD_SO_FLAGS], ["-shared -undefined dynamic_lookup"])
+    if test "X$darwin" = "Xtrue"; then
+      AC_SUBST([LD_SO_FLAGS], ["-bundle -undefined dynamic_lookup"])
+    else
+      AC_SUBST([LD_SO_FLAGS], ["-shared -undefined dynamic_lookup"])
+    fi
     AM_CONDITIONAL([HAVE_CLANG], true)
   else
-    AC_SUBST([LD_SO_FLAGS], ["-shared"])
+    if test "X$darwin" = "Xtrue"; then
+      AC_SUBST([LD_SO_FLAGS], ["-bundle"])
+    else
+      AC_SUBST([LD_SO_FLAGS], ["-shared"])
+    fi
     AM_CONDITIONAL([HAVE_CLANG], false)
   fi
 ])
