@@ -6,8 +6,6 @@ AM_CPPFLAGS = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/include
 
 ACLOCAL_AMFLAGS = -I acinclude
 
-bin_PROGRAMS = ssthg_clang
-
 dist_bin_SCRIPTS = \
   hgcclib.py \
   hgccutils.py \
@@ -25,6 +23,9 @@ AM_LDFLAGS = -ldl
 EXTRA_DIST = clang
 
 if HAVE_CLANG
+
+bin_PROGRAMS = ssthg_clang
+
 ssthg_clang_SOURCES = \
   clang/util.cc \
   clang/main.cc \
@@ -81,7 +82,7 @@ ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
  @CLANG_LIBTOOLING_LIBS@ \
  @CLANG_LIBTOOLING_SYSTEM_LIBS@
 
-# TODO Figure out this was included
+# TODO Figure out why this was included
 # if CLANG_NEED_LIBCPP
 # ssthg_clang_LDFLAGS += -lclang-cpp
 # endif
