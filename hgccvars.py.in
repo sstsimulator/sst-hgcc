@@ -57,8 +57,8 @@ defaultIncludePaths="@DEFAULT_INCLUDE_PATHS@:@SST_ELEMENTS@/include"
 clangBin="@CLANG_INSTALL_DIR@"
 
 sstCppFlags = [
-"-I@sst_prefix@/include",
 "@CPPFLAGS@",
+"-I@sst_prefix@/include",
 "-I@SST_ELEMENTS@/include/sst/elements",
 "-I@SST_ELEMENTS@/include/sst/elements/mercury/common",
 "-I@SST_ELEMENTS@/include/sst/elements/mercury/software/libraries",

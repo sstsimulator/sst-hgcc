@@ -323,6 +323,8 @@ def run(typ, extraLibs=""):
   ctx.sstCore = sstCore
   ctx.hasClang = bool(clangCppFlagsStr)
 
+  # AC_PROG_CXX likes to stick CXXFLAGS into CXX
+  ctx.cxx = ctx.cxx.split(" ")[0]
 
   #it is possible to override the host compilers use to do preprocessing/compilation
   if args.host_cxx:
