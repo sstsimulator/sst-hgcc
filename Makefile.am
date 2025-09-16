@@ -38,6 +38,53 @@ ssthg_clang_SOURCES = \
   clang/frontendActions.cc \
   clang/astVisitor.cc 
 
+if USE_REPLACEMENT_HEADERS
+	nobase_library_include_HEADERS += \
+  replacements/time.h 
+#   replacements/sys/types.h 
+#  	replacements/linux/mmtimer.h \
+#  	replacements/linux/limits.h \
+#  replacements/clear_symbol_macros.h \
+#  replacements/return_symbol_macros.h \
+  #replacements/sstmac_pthread_return.h \
+#  replacements/sys/sendfile.h \
+#  replacements/dlfcn.h \
+  #replacements/future \
+  #replacements/fstream \
+  #replacements/iostream \
+  #replacements/ios \
+ # replacements/ostream \
+ # replacements/istream \
+  #replacements/condition_variable \
+  #replacements/list \
+  #replacements/map \
+  #replacements/unordered_map \
+  #replacements/unordered_set \
+  #replacements/memory \
+  #replacements/mutex \
+  #replacements/thread \
+  #replacements/sched.h \
+  #replacements/pthread.h \
+  #replacements/unistd.h \
+  #replacements/cstring \
+  #replacements/cstdlib \
+  #replacements/stdlib.h \
+  #replacements/malloc.h \
+  #replacements/mm_malloc.h \
+  #replacements/string.h \
+  #replacements/queue \
+  #replacements/sstream \
+  #replacements/stack \
+  #replacements/set \
+  #replacements/string \
+  #replacements/vector \
+  #replacements/stdio.h \
+  #replacements/signal.h \
+  #replacements/sstmac_pthread_clear.h \
+  #replacements/wait.h \
+  #replacements/sys/time.h \
+  #replacements/sys/signal.h 
+endif
 ssthg_clang_CXXFLAGS = -fno-rtti $(AM_CXXFLAGS)
 ssthg_clang_CPPFLAGS = $(CLANG_CPPFLAGS) $(AM_CPPFLAGS) $(SST_CPPFLAGS)
 
