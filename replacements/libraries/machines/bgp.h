@@ -42,8 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#ifndef sstmac_libraries_machines_BGP_H
-#define sstmac_libraries_machines_BGP_H
+#ifndef hgcc_libraries_machines_BGP_H
+#define hgcc_libraries_machines_BGP_H
 
 extern "C" {
 

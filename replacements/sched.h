@@ -42,9 +42,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#if defined(SSTMAC_INSIDE_STL) || defined(SSTMAC_NO_REPLACEMENTS)
+#if defined(HGCC_INSIDE_STL) || defined(HGCC_NO_REPLACEMENTS)
 #include_next <sched.h>
 #else
-#include <sstmac/libraries/pthread/sstmac_sched.h>
+#include <libraries/pthread/hgcc_sched.h>
 #endif
 

@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#include <sstmac/libraries/machines/bgp.h>
+#include <libraries/machines/bgp.h>
 #include <sstmac/common/runtime.h>
 #include <sstmac/hardware/topology/topology.h>
 #include <sstmac/hardware/topology/torus.h>

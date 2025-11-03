@@ -5,11 +5,11 @@
 // and it's broken on newer standard library implementations 
 #if 0
 
-#ifndef SSTMAC_INSIDE_STL
-#define SSTMAC_INSIDE_STL
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
 #define THREAD_OWNS_STL
-#include <sstmac/replacements/sstmac_pthread_clear.h>
-#include <sstmac/replacements/clear_symbol_macros.h>
+#include <sstmac_pthread_clear.h>
+#include <clear_symbol_macros.h>
 #endif
 
 #include <sstmac/software/process/std_thread.h>
@@ -27,9 +27,9 @@ template <class T=void> T yield(){}
 
 #ifdef THREAD_OWNS_STL
 #undef THREAD_OWNS_STL
-#undef SSTMAC_INSIDE_STL
-#include <sstmac/replacements/return_symbol_macros.h>
-#include <sstmac/replacements/sstmac_pthread_return.h>
+#undef HGCC_INSIDE_STL
+#include <return_symbol_macros.h>
+#include <sstmac_pthread_return.h>
 #endif
 
 #endif // end if 0 

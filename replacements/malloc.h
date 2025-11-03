@@ -44,13 +44,13 @@ Questions? Contact sst-macro-help@sandia.gov
 //because of library weirdness on some platforms
 //if need malloc/calloc - only include the next file
 //and don't do anything else
-#ifndef sstmac_malloc_included_h
-#define sstmac_malloc_included_h
+#ifndef hgcc_malloc_included_h
+#define hgcc_malloc_included_h
 
-#ifndef SSTMAC_INSIDE_STL
-#define SSTMAC_INSIDE_STL
-#include <sstmac/replacements/sstmac_pthread_clear.h>
-#include <sstmac/replacements/clear_symbol_macros.h>
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
+#include <hgcc_pthread_clear.h>
+#include <clear_symbol_macros.h>
 #define STDLIB_OWNS_STL
 #endif
 
@@ -60,18 +60,18 @@ Questions? Contact sst-macro-help@sandia.gov
 extern "C" {
 #endif
 #pragma sst null_ptr safe
-extern void sstmac_free(void* ptr);
+extern void hgcc_free(void* ptr);
 #ifdef __cplusplus
 }
 #endif
 
-#define _mm_free sstmac_free
+#define _mm_free hgcc_free
 
 #ifdef STDLIB_OWNS_STL
 #undef STDLIB_OWNS_STL
-#undef SSTMAC_INSIDE_STL
-#include <sstmac/replacements/sstmac_pthread_return.h>
-#include <sstmac/replacements/return_symbol_macros.h>
+#undef HGCC_INSIDE_STL
+#include <hgcc_pthread_return.h>
+#include <return_symbol_macros.h>
 #endif 
 
 #endif

@@ -55,6 +55,46 @@ def addLink(ctx, ldTarget, args, cmds, objects, toExe=False):
   linkCmdArr.extend(ctx.compilerFlags)
   linkCmdArr.extend(map(lambda x: "-L%s" % x, args.L)) #add all the -L flags for now
   linkCmdArr.extend(map(lambda x: "-l%s" % x, args.l)) #add all the -l flags for now
+  
+  # Add conditional replacement libraries based on --replacements parameter
+  if hasattr(ctx, 'requestedReplacements') and ctx.requestedReplacements:
+    replacementsLibPath = prefix + "/lib"
+    
+    # Map replacement headers to their corresponding libraries
+    replacementLibMap = {
+      'omp.h': 'hgcc_omp',
+      'pthread.h': 'hgcc_pthread', 
+      'blas.h': 'hgcc_blas',
+      'cblas.h': 'hgcc_blas',
+      'bgp.h': 'hgcc_machines'
+    }
+    
+    for replacement in ctx.requestedReplacements:
+      if replacement in replacementLibMap:
+        libName = replacementLibMap[replacement]
+        libPath = replacementsLibPath + "/lib%s.a" % libName
+        try:
+          with open(libPath, 'r'):
+            pass
+          libExists = True
+        except:
+          libExists = False
+        if libExists:
+          linkCmdArr.append(libPath)
+        else:
+          # Try as shared library
+          libPath = replacementsLibPath + "/lib%s.so" % libName
+          try:
+            with open(libPath, 'r'):
+              pass
+            libExists = True
+          except:
+            libExists = False
+          if libExists:
+            linkCmdArr.append(libPath)
+          else:
+            print("Warning: Replacement library for '%s' not found" % replacement)
+  
   linkCmdArr.extend(objects)
   linkCmdArr.append("-o")
   linkCmdArr.append(ldTarget)

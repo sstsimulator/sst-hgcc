@@ -41,14 +41,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-#include <sstmac/libraries/pthread/sstmac_pthread_impl.h>
+#include <libraries/pthread/hgcc_pthread_impl.h>
 #include <sstmac/software/api/api.h>
 #include <sstmac/software/process/thread.h>
 #include <sstmac/software/process/operating_system.h>
 #include <sstmac/hardware/node/node.h>
 #include <sstmac/software/process/app.h>
 #include <sstmac/hardware/processor/processor.h>
-#include <sstmac/replacements/omp.h>
+#include <omp.h>
 
 #undef omp_init_lock
 #undef omp_destroy_lock
@@ -69,89 +69,89 @@ namespace sstmac {
 namespace sw {
 
 extern "C"
-void sstmac_omp_init_lock(sstmac_omp_lock_t *lock)
+void hgcc_omp_init_lock(hgcc_omp_lock_t *lock)
 {
-  SSTMAC_pthread_mutex_init(lock, nullptr);
+  HGCC_pthread_mutex_init(lock, nullptr);
 }
 
 extern "C"
-void sstmac_omp_destroy_lock(sstmac_omp_lock_t *lock)
+void hgcc_omp_destroy_lock(hgcc_omp_lock_t *lock)
 {
-  SSTMAC_pthread_mutex_destroy(lock);
+  HGCC_pthread_mutex_destroy(lock);
 }
 
 extern "C"
-void sstmac_omp_set_lock(sstmac_omp_lock_t *lock)
+void hgcc_omp_set_lock(hgcc_omp_lock_t *lock)
 {
-  SSTMAC_pthread_mutex_lock(lock);
+  HGCC_pthread_mutex_lock(lock);
 }
 
 extern "C"
-void sstmac_omp_unset_lock(sstmac_omp_lock_t *lock)
+void hgcc_omp_unset_lock(hgcc_omp_lock_t *lock)
 {
-  SSTMAC_pthread_mutex_unlock(lock);
+  HGCC_pthread_mutex_unlock(lock);
 }
 
 extern "C"
-int sstmac_omp_test_lock(sstmac_omp_lock_t *lock)
+int hgcc_omp_test_lock(hgcc_omp_lock_t *lock)
 {
-  return SSTMAC_pthread_mutex_trylock(lock);
+  return HGCC_pthread_mutex_trylock(lock);
 }
 
 extern "C"
-double sstmac_omp_get_wtime(){
+double hgcc_omp_get_wtime(){
   return sstmac::sw::OperatingSystem::currentOs()->now().sec();
 }
 
 extern "C"
-int sstmac_omp_get_thread_num(){
+int hgcc_omp_get_thread_num(){
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   return t->ompGetThreadNum();
 }
 
 extern "C"
-int sstmac_omp_get_num_threads(){
+int hgcc_omp_get_num_threads(){
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   return t->ompGetNumThreads();
 }
 
 extern "C"
-int sstmac_omp_get_max_threads(){
+int hgcc_omp_get_max_threads(){
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   //for now, just return number of cores
   return t->ompGetMaxThreads();
 }
 
 extern "C"
-int sstmac_omp_get_num_procs()
+int hgcc_omp_get_num_procs()
 {
   sstmac::sw::OperatingSystem* os = sstmac::sw::OperatingSystem::currentOs();
   return os->node()->proc()->ncores();
 }
 
 extern "C"
-void sstmac_omp_set_num_threads(int nthr)
+void hgcc_omp_set_num_threads(int nthr)
 {
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   t->ompSetNumThreads(nthr);
 }
 
 extern "C"
-int sstmac_omp_in_parallel()
+int hgcc_omp_in_parallel()
 {
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   return t->ompInParallel();
 }
 
 extern "C"
-int sstmac_omp_get_level()
+int hgcc_omp_get_level()
 {
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   return t->ompGetLevel();
 }
 
 extern "C"
-int sstmac_omp_get_ancestor_thread_num()
+int hgcc_omp_get_ancestor_thread_num()
 {
   sstmac::sw::Thread* t = sstmac::sw::OperatingSystem::currentThread();
   return t->ompGetAncestorThreadNum();

@@ -41,8 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-#ifndef sstmac_unistd_h
-#define sstmac_unistd_h
+#ifndef hgcc_unistd_h
+#define hgcc_unistd_h
 
 #include_next <unistd.h>
 
@@ -50,26 +50,26 @@ Questions? Contact sst-macro-help@sandia.gov
 #define HOST_NAME_MAX 64
 #endif
 
-#ifndef SSTMAC_NO_REPLACEMENTS
-#define sleep       sstmac_sleep
+#ifndef HGCC_NO_REPLACEMENTS
+#define sleep       hgcc_sleep
 #endif
 
-#define gethostname sstmac_gethostname
-#define gethostid   sstmac_gethostid
-#define alarm       sstmac_alarm
+#define gethostname hgcc_gethostname
+#define gethostid   hgcc_gethostid
+#define alarm       hgcc_alarm
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-int sstmac_gethostname(const char* name, size_t sz);
+int hgcc_gethostname(const char* name, size_t sz);
 
-long sstmac_gethostid();
+long hgcc_gethostid();
 
-unsigned int sstmac_sleep(unsigned int secs);
+unsigned int hgcc_sleep(unsigned int secs);
 
-unsigned int sstmac_sleepUntil(double t);
+unsigned int hgcc_sleepUntil(double t);
 
-unsigned int sstmac_alarm(unsigned int);
+unsigned int hgcc_alarm(unsigned int);
 
 #ifdef __cplusplus
 }

@@ -41,27 +41,27 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-#ifndef sstmac_string_h_included
-#define sstmac_string_h_included
+#ifndef hgcc_string_h_included
+#define hgcc_string_h_included
 
-#ifndef SSTMAC_INSIDE_STL
-#define SSTMAC_INSIDE_STL
-#include <sstmac/replacements/sstmac_pthread_clear.h>
-#include <sstmac/replacements/clear_symbol_macros.h>
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
+#include <hgcc_pthread_clear.h>
+#include <clear_symbol_macros.h>
 #define STRING_H_OWNS_STL
 #endif
 
 #include_next <string.h>
 
-#ifdef SSTMAC_INSIDE_STL
-#define sstmac_must_return_memcpy
-#define sstmac_must_return_memset
+#ifdef HGCC_INSIDE_STL
+#define hgcc_must_return_memcpy
+#define hgcc_must_return_memset
 #else
 #ifndef memset
-#define memset sstmac_memset
+#define memset hgcc_memset
 #endif
 #ifndef memcpy
-#define memcpy sstmac_memcpy
+#define memcpy hgcc_memcpy
 #endif
 #endif
 
@@ -76,10 +76,10 @@ extern "C" {
 #endif
 
 #pragma sst null_ptr safe
-void* sstmac_memset(void* ptr, int value, unsigned long  sz);
+void* hgcc_memset(void* ptr, int value, unsigned long  sz);
 
 #pragma sst null_ptr safe
-void* sstmac_memcpy(void* dst, const void* src, unsigned long sz);
+void* hgcc_memcpy(void* dst, const void* src, unsigned long sz);
 
 #if defined(__clang__) // Add back the warnings
 #pragma clang diagnostic pop
@@ -91,9 +91,9 @@ void* sstmac_memcpy(void* dst, const void* src, unsigned long sz);
 
 #ifdef STRING_H_OWNS_STL
 #undef STRING_H_OWNS_STL
-#undef SSTMAC_INSIDE_STL
-#include <sstmac/replacements/sstmac_pthread_return.h>
-#include <sstmac/replacements/return_symbol_macros.h>
+#undef HGCC_INSIDE_STL
+#include <hgcc_pthread_return.h>
+#include <return_symbol_macros.h>
 #endif
 
 #endif

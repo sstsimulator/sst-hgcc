@@ -41,9 +41,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-#if defined(SSTMAC_INSIDE_STL) || defined(SSTMAC_NO_REPLACEMENTS)
+#if defined(HGCC_INSIDE_STL) || defined(HGCC_NO_REPLACEMENTS)
 #include_next <pthread.h>
 #else
-#include <sstmac/libraries/pthread/sstmac_pthread.h>
+#include <libraries/pthread/hgcc_pthread.h>
 #endif
 

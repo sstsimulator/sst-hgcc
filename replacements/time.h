@@ -54,27 +54,27 @@ Questions? Contact sst-macro-help@sandia.gov
 
 /** GCC is a BoD and includes headers in different configs */
 
-#ifndef sstmac_replacement_time_h
-#define sstmac_replacement_time_h
+#ifndef hgcc_replacement_time_h
+#define hgcc_replacement_time_h
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
 
-int sstmac_ts_nanosleep(const struct timespec *req, struct timespec *rem);
+int hgcc_ts_nanosleep(const struct timespec *req, struct timespec *rem);
 
 #if _POSIX_VERSION > 199309
-int SSTMAC_clock_gettime(clockid_t id, struct timespec* ts);
+int HGCC_clock_gettime(clockid_t id, struct timespec* ts);
 #endif
 
 #ifdef __cplusplus
 }
 #endif
 
-#ifndef SSTMAC_NO_REPLACEMENTS
-#define nanosleep sstmac_ts_nanosleep
-#define clock_gettime SSTMAC_clock_gettime
+#ifndef HGCC_NO_REPLACEMENTS
+#define nanosleep hgcc_ts_nanosleep
+#define clock_gettime HGCC_clock_gettime
 #endif
 
 #endif

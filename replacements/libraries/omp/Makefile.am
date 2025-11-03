@@ -11,14 +11,14 @@
 
 include $(top_srcdir)/Makefile.common
 
-noinst_LTLIBRARIES = libsstmac_omp.la
+noinst_LTLIBRARIES = libhgcc_omp.la
 library_includedir=$(includedir)/sstmac/libraries/omp
 
 AM_FCFLAGS = -I$(top_builddir) -I$(top_srcdir) -m32 -m64
 
-libsstmac_omp_la_LDFLAGS = 
+libhgcc_omp_la_LDFLAGS = 
 
-libsstmac_omp_la_SOURCES = \
+libhgcc_omp_la_SOURCES = \
   libomp.cc
 
 

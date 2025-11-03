@@ -42,4 +42,4 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#include <replacements/libraries/pthread/sstmac_sys_types.h>
+#include <replacements/libraries/pthread/hgcc_sys_types.h>

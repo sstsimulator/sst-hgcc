@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#include <sstmac/libraries/blas/blas_api.h>
+#include <libraries/blas/blas_api.h>
 #include <sprockit/sim_parameters.h>
 #include <algorithm>
 #include <sstmac/software/libraries/compute/compute_event.h>

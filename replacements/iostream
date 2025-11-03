@@ -2,11 +2,11 @@
 #ifndef sstmac_iostream_included
 #define sstmac_iostream_included
 
-#ifndef SSTMAC_INSIDE_STL
-#define SSTMAC_INSIDE_STL
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
 #define IOSTREAM_OWNS_STL
-#include <sstmac/replacements/sstmac_pthread_clear.h>
-#include <sstmac/replacements/clear_symbol_macros.h>
+#include <sstmac_pthread_clear.h>
+#include <clear_symbol_macros.h>
 #endif
 
 #include_next <iostream>
@@ -31,9 +31,9 @@ using sstmac::cerr_wrapper;
 
 #ifdef IOSTREAM_OWNS_STL
 #undef IOSTREAM_OWNS_STL
-#undef SSTMAC_INSIDE_STL
-#include <sstmac/replacements/return_symbol_macros.h>
-#include <sstmac/replacements/sstmac_pthread_return.h>
+#undef HGCC_INSIDE_STL
+#include <return_symbol_macros.h>
+#include <sstmac_pthread_return.h>
 #endif
 
 #endif

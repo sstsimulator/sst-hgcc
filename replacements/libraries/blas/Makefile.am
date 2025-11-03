@@ -11,11 +11,11 @@
 
 include $(top_srcdir)/Makefile.common
 
-lib_LTLIBRARIES = libsstmac_blas.la
+lib_LTLIBRARIES = libhgcc_blas.la
 
 AM_FCFLAGS = -I$(top_builddir) -I$(top_srcdir) -m32 -m64
 
-libsstmac_blas_la_SOURCES = \
+libhgcc_blas_la_SOURCES = \
   ddot.cc \
   dgemm.cc \
   dgemv.cc \

@@ -42,52 +42,52 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#ifdef sstmac_must_return_free
-#define free sstmac_free
-#undef sstmac_must_return_free
+#ifdef hgcc_must_return_free
+#define free hgcc_free
+#undef hgcc_must_return_free
 #endif
 
-#ifdef sstmac_must_return_memset
+#ifdef hgcc_must_return_memset
 #undef memset
-#define memset sstmac_memset
-#undef sstmac_must_return_memset
+#define memset hgcc_memset
+#undef hgcc_must_return_memset
 #endif
 
-#ifdef sstmac_must_return_memcpy
+#ifdef hgcc_must_return_memcpy
 #undef memcpy
-#define memcpy sstmac_memcpy
-#undef sstmac_must_return_memcpy
+#define memcpy hgcc_memcpy
+#undef hgcc_must_return_memcpy
 #endif
 
-#ifdef sstmac_must_return_gethostname
+#ifdef hgcc_must_return_gethostname
 #undef gethostname
-#define gethostname sstmac_gethostname
-#undef sstmac_must_return_gethostname
+#define gethostname hgcc_gethostname
+#undef hgcc_must_return_gethostname
 #endif
 
-#ifdef sstmac_must_return_gethostid
+#ifdef hgcc_must_return_gethostid
 #undef gethostid
-#define gethostid sstmac_gethostid
-#undef sstmac_must_return_gethostid
+#define gethostid hgcc_gethostid
+#undef hgcc_must_return_gethostid
 #endif
 
-#ifdef sstmac_must_return_mutex
-#define mutex sstmac_mutex
-#undef sstmac_must_return_mutex
+#ifdef hgcc_must_return_mutex
+#define mutex hgcc_mutex
+#undef hgcc_must_return_mutex
 #endif
 
-#ifdef sstmac_must_return_getenv
-#define getenv sstmac_getenv
-#undef sstmac_must_return_getenv
+#ifdef hgcc_must_return_getenv
+#define getenv hgcc_getenv
+#undef hgcc_must_return_getenv
 #endif
 
-#ifdef sstmac_must_return_setenv
-#define setenv sstmac_setenv
-#undef sstmac_must_return_setenv
+#ifdef hgcc_must_return_setenv
+#define setenv hgcc_setenv
+#undef hgcc_must_return_setenv
 #endif
 
-#ifdef sstmac_must_return_putenv
-#define putenv sstmac_putenv
-#undef sstmac_must_return_putenv
+#ifdef hgcc_must_return_putenv
+#define putenv hgcc_putenv
+#undef hgcc_must_return_putenv
 #endif
 

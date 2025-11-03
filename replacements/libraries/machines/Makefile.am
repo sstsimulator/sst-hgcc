@@ -11,11 +11,11 @@
 
 include $(top_srcdir)/Makefile.common
 
-noinst_LTLIBRARIES = libsstmac_machines.la
+noinst_LTLIBRARIES = libhgcc_machines.la
 
 AM_FCFLAGS = -I$(top_builddir) -I$(top_srcdir) -m32 -m64
 
-libsstmac_machines_la_SOURCES = \
+libhgcc_machines_la_SOURCES = \
   bgp.cc
 
 library_includedir=$(includedir)/sstmac/libraries/machines

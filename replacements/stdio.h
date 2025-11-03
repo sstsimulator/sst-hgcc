@@ -50,17 +50,17 @@ Questions? Contact sst-macro-help@sandia.gov
 extern "C" {
 #endif
 
-FILE* sstmac_stdout();
-FILE* sstmac_stderr();
+FILE* hgcc_stdout();
+FILE* hgcc_stderr();
 
 #ifdef __cplusplus
 }
 #endif
 
-#ifndef SSTMAC_NO_REPLACEMENTS
+#ifndef HGCC_NO_REPLACEMENTS
 #undef stdout
-#define stdout sstmac_stdout()
+#define stdout hgcc_stdout()
 #undef stderr
-#define stderr sstmac_stderr()
-#define printf(...) fprintf(sstmac_stdout(), __VA_ARGS__)
+#define stderr hgcc_stderr()
+#define printf(...) fprintf(hgcc_stdout(), __VA_ARGS__)
 #endif

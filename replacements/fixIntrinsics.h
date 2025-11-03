@@ -41,8 +41,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Questions? Contact sst-macro-help@sandia.gov
 */
-#ifndef sstmac_replacements_fix_intrinsics_h
-#define sstmac_replacements_fix_intrinsics_h
+#ifndef hgcc_replacements_fix_intrinsics_h
+#define hgcc_replacements_fix_intrinsics_h
 
 #define __is_aggregate(x) true
 #define __has_unique_object_representations(x) true

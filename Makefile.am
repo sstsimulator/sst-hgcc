@@ -101,6 +101,28 @@ libclang17_a_CXXFLAGS = $(filter-out $(old_standards), $(sstmac_clang_CXXFLAGS))
 
 library_includedir=$(includedir)/memoization
 library_include_HEADERS = clang/memoization/capture.h
+
+# Install replacement headers directory
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/linux
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/mpi
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries/pthread
+	cp -r $(srcdir)/replacements/* $(DESTDIR)$(includedir)/replacements/
+	@# Copy configured files from build directory (overwrite .in files)
+	if test -f $(builddir)/replacements/sstmac_pthread_clear.h; then \
+		cp $(builddir)/replacements/sstmac_pthread_clear.h $(DESTDIR)$(includedir)/replacements/; \
+	fi
+	if test -f $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h; then \
+		cp $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h $(DESTDIR)$(includedir)/replacements/libraries/pthread/; \
+	fi
+	@# Remove .in files that have been configured
+	rm -f $(DESTDIR)$(includedir)/replacements/sstmac_pthread_clear.h.in
+	rm -f $(DESTDIR)$(includedir)/replacements/libraries/pthread/sstmac_sys_types.h.in
+
+# Note: Replacement libraries will be added later when they are built
 endif
 
 ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \

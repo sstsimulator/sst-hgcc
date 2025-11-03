@@ -44,14 +44,14 @@ Questions? Contact sst-macro-help@sandia.gov
 //because of library weirdness on some platforms
 //if need malloc/calloc - only include the next file
 //and don't do anything else
-#ifndef sstmac_stdlib_included_h
+#ifndef hgcc_stdlib_included_h
 #ifndef __need_malloc_and_calloc
-#define sstmac_stdlib_included_h
+#define hgcc_stdlib_included_h
 
-#ifndef SSTMAC_INSIDE_STL
-#define SSTMAC_INSIDE_STL
-#include <sstmac/replacements/sstmac_pthread_clear.h>
-#include <sstmac/replacements/clear_symbol_macros.h>
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
+#include <hgcc_pthread_clear.h>
+#include <clear_symbol_macros.h>
 #define STDLIB_OWNS_STL
 #endif
 #endif
@@ -63,15 +63,15 @@ extern "C" {
 //gcc is an abomination, which requires these functions to be available
 //because stdlib.h can turn around and include cstdlib
 //because gcc is an abomination
-int sstmac_atexit(void (*)());
-int sstmac_on_exit(void (*)(int,void*),void*);
-void sstmac_exit(int code);
+int hgcc_atexit(void (*)());
+int hgcc_on_exit(void (*)(int,void*),void*);
+void hgcc_exit(int code);
 #pragma sst null_ptr safe
-extern void sstmac_free(void* ptr);
+extern void hgcc_free(void* ptr);
 
-char* sstmac_getenv(const char* name);
-int sstmac_putenv(char* input);
-int sstmac_setenv(const char* name, const char* val, int overwrite);
+char* hgcc_getenv(const char* name);
+int hgcc_putenv(char* input);
+int hgcc_setenv(const char* name, const char* val, int overwrite);
 
 #include_next <stdlib.h>
 
@@ -83,20 +83,20 @@ void free(void* ptr);
 #endif
 
 #ifndef __need_malloc_and_calloc
-#define atexit sstmac_atexit
-#define _exit sstmac_exit
-#define on_exit sstmac_on_exit
-#define getenv sstmac_getenv
-#define setenv sstmac_setenv
-#define putenv sstmac_putenv
+#define atexit hgcc_atexit
+#define _exit hgcc_exit
+#define on_exit hgcc_on_exit
+#define getenv hgcc_getenv
+#define setenv hgcc_setenv
+#define putenv hgcc_putenv
 
 
 
 #ifdef STDLIB_OWNS_STL
 #undef STDLIB_OWNS_STL
-#undef SSTMAC_INSIDE_STL
-#include <sstmac/replacements/sstmac_pthread_return.h>
-#include <sstmac/replacements/return_symbol_macros.h>
+#undef HGCC_INSIDE_STL
+#include <hgcc_pthread_return.h>
+#include <return_symbol_macros.h>
 #endif
 
 #endif 

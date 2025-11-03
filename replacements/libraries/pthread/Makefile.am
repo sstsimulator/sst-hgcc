@@ -11,29 +11,29 @@
 
 include $(top_srcdir)/Makefile.common
 
-noinst_LTLIBRARIES = libsstmac_pthread.la
+noinst_LTLIBRARIES = libhgcc_pthread.la
 library_includedir=$(includedir)/sstmac/libraries/pthread
 
 AM_FCFLAGS = -I$(top_builddir) -I$(top_srcdir) -m32 -m64
 
-libsstmac_pthread_la_LDFLAGS = 
+libhgcc_pthread_la_LDFLAGS = 
 
-libsstmac_pthread_la_SOURCES = \
-  sstmac_pthread.cc \
-  sstmac_pthread_runner.cc \
-  sstmac_sched.cc 
+libhgcc_pthread_la_SOURCES = \
+  hgcc_pthread.cc \
+  hgcc_pthread_runner.cc \
+  hgcc_sched.cc 
 
 nodist_library_include_HEADERS = \
-  sstmac_sys_types.h
+  hgcc_sys_types.h
 
 nobase_library_include_HEADERS = \
-  sstmac_cpu_set.h \
-  sstmac_pthread_impl.h \
-  sstmac_pthread_macro.h \
-  sstmac_pthread_clear_macros.h \
-  sstmac_pthread.h \
-  sstmac_pthread_runner.h \
-  sstmac_sched.h \
-  sstmac_sched_macro.h \
-  sstmac_sched_clear_macros.h 
+  hgcc_cpu_set.h \
+  hgcc_pthread_impl.h \
+  hgcc_pthread_macro.h \
+  hgcc_pthread_clear_macros.h \
+  hgcc_pthread.h \
+  hgcc_pthread_runner.h \
+  hgcc_sched.h \
+  hgcc_sched_macro.h \
+  hgcc_sched_clear_macros.h 
 

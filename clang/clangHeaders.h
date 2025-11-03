@@ -61,6 +61,8 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "clang/AST/Expr.h"
 #include "clang/Lex/Lexer.h"
 #include <clang/Lex/Preprocessor.h>
+#include <clang/Basic/FileManager.h>
+#include <clang/Basic/SourceManager.h>
 #include <clang/Sema/Sema.h>
 #include <clang/Basic/Version.h>
 #include <llvm/Support/CommandLine.h>

@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#include <sstmac/common/sstmac_config.h>
+#include <sstmac/common/hgcc_config.h>
 
 
 #include <sumi-mpi/mpi_wrapper.h>

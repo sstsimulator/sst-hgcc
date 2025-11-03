@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#include <sstmac/libraries/blas/blas_api.h>
+#include <libraries/blas/blas_api.h>
 #include <sstmac/software/process/app.h>
 #include <sstmac/software/process/operating_system.h>
 
@@ -58,64 +58,64 @@ get_lib_blas()
 }
 
 extern "C" void
-sstmac_simple_dgemm(int m, int n, int k)
+hgcc_simple_dgemm(int m, int n, int k)
 {
   get_lib_blas()->dgemm(m, n, k);
 }
 
 extern "C" void
-sstmac_dgemm(char * /*transa*/, char * /*transb*/, int* m, int* n, int* k, 
+hgcc_dgemm(char * /*transa*/, char * /*transb*/, int* m, int* n, int* k, 
   double*  /*alpha*/, double*  /*a*/, int*  /*lda*/, 
   double*  /*b*/, int*  /*ldb*/, double*  /*beta*/, 
   double*  /*c*/, int*  /*ldc*/
 )
 {
-  sstmac_simple_dgemm(*m, *n, *k);
+  hgcc_simple_dgemm(*m, *n, *k);
 }
 
 extern "C" void
-sstmac_simple_dgemv(int m, int n)
+hgcc_simple_dgemv(int m, int n)
 {
   get_lib_blas()->dgemv(m, n);
 }
 
 extern "C" void
-sstmac_dgemv(char * /*transa*/, int* m, int* n,
+hgcc_dgemv(char * /*transa*/, int* m, int* n,
   double*  /*alpha*/, double*  /*a*/, int*  /*lda*/,
   double*  /*x*/, int*  /*incx*/, double*  /*beta*/,
   double*  /*y*/, int*  /*incy*/
 )
 {
-  sstmac_simple_dgemv(*m, *n);
+  hgcc_simple_dgemv(*m, *n);
 }
 
 
 extern "C" void
-sstmac_simple_daxpy(int n)
+hgcc_simple_daxpy(int n)
 {
   get_lib_blas()->daxpy(n);
 }
 
 extern "C" void
-sstmac_daxpy(int* n,
+hgcc_daxpy(int* n,
   double*  /*alpha*/,
   double*  /*x*/, int*  /*incx*/,
   double*  /*y*/, int*  /*incy*/
 )
 {
-  sstmac_simple_daxpy(*n);
+  hgcc_simple_daxpy(*n);
 }
 
 extern "C" void
-sstmac_simple_ddot(int n)
+hgcc_simple_ddot(int n)
 {
   get_lib_blas()->ddot(n);
 }
 
 extern "C" void
-sstmac_ddot(int* n,
+hgcc_ddot(int* n,
   double*  /*x*/, int*  /*incx*/,
   double*  /*y*/, int*  /*incy*/)
 {
-  sstmac_simple_ddot(*n);
+  hgcc_simple_ddot(*n);
 }

@@ -306,6 +306,7 @@ def run(typ, extraLibs=""):
   parser.add_argument("-fvisibility", type=str, help="control the visibility of certain symbols")
   parser.add_argument("--host-cxx", type=str, help="override the C++ compiler used underneath from the one used to build SST/macro")
   parser.add_argument("--host-cc", type=str, help="override the C compiler used underneath from the one used to build SST/macro")
+  parser.add_argument("--replacements", type=str, help="comma-separated list of replacement headers to include (e.g., 'omp.h,pthread.h')")
   
   args, extraArgs = parser.parse_known_args()
 
@@ -322,6 +323,40 @@ def run(typ, extraLibs=""):
   ctx.typ = typ
   ctx.sstCore = sstCore
   ctx.hasClang = bool(clangCppFlagsStr)
+  
+  # Process replacements parameter
+  ctx.requestedReplacements = []
+  if args.replacements:
+    ctx.requestedReplacements = [r.strip() for r in args.replacements.split(',') if r.strip()]
+    
+    # Create a temporary directory with only the specified replacement headers
+    # This ensures only the requested headers are available as replacements
+    import tempfile
+    import shutil
+    replacementsPath = os.path.join(prefix, "include", "replacements")
+    tempReplacementsDir = tempfile.mkdtemp()
+    
+    # Copy only the specified replacement headers to the temp directory
+    for replacement in ctx.requestedReplacements:
+      replacementFile = os.path.join(replacementsPath, replacement)
+      if os.path.exists(replacementFile):
+        # Handle subdirectory headers (e.g., "linux/limits.h")
+        if "/" in replacement:
+          tempHeader = os.path.join(tempReplacementsDir, replacement)
+          os.makedirs(os.path.dirname(tempHeader), exist_ok=True)
+          shutil.copy2(replacementFile, tempHeader)
+        else:
+          # Regular headers
+          shutil.copy2(replacementFile, os.path.join(tempReplacementsDir, replacement))
+      else:
+        print("Warning: Replacement header '%s' not found at %s" % (replacement, replacementFile))
+    
+    # Store the temp directory path for cleanup later
+    ctx.tempReplacementsDir = tempReplacementsDir
+    
+    # Add temp directory to args.I at position 0 for highest priority
+    # This ensures only the specified headers are available as replacements
+    args.I.insert(0, tempReplacementsDir)
 
   # AC_PROG_CXX likes to stick CXXFLAGS into CXX
   ctx.cxx = ctx.cxx.split(" ")[0]

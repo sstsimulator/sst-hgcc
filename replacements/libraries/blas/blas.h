@@ -42,21 +42,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#ifndef sstmac_libraries_blas_macros_h
-#define sstmac_libraries_blas_macros_h
+#ifndef hgcc_libraries_blas_macros_h
+#define hgcc_libraries_blas_macros_h
 
-#define dgemm sstmac_dgemm
-#define dgemv sstmac_dgemv
-#define daxpy sstmac_daxpy
+#define dgemm hgcc_dgemm
+#define dgemv hgcc_dgemv
+#define daxpy hgcc_daxpy
 
-#define dgemm_ sstmac_dgemm
-#define dgemv_ sstmac_dgemv
-#define daxpy_ sstmac_daxpy
+#define dgemm_ hgcc_dgemm
+#define dgemv_ hgcc_dgemv
+#define daxpy_ hgcc_daxpy
 
-#define _dgemm sstmac_dgemm
-#define _dgemv sstmac_dgemv
-#define _daxpy sstmac_daxpy
+#define _dgemm hgcc_dgemm
+#define _dgemv hgcc_dgemv
+#define _daxpy hgcc_daxpy
 
-#include <sstmac/libraries/blas/cblas.h>
+#include <libraries/blas/cblas.h>
 
 #endif

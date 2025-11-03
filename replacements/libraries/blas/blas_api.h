@@ -42,8 +42,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 */
 
-#ifndef sstmac_software_libraries_socketapiS_H
-#define sstmac_software_libraries_socketapiS_H
+#ifndef hgcc_software_libraries_socketapiS_H
+#define hgcc_software_libraries_socketapiS_H
 
 #include <sstmac/software/api/api.h>
 #include <sstmac/software/libraries/compute/lib_compute_fwd.h>
