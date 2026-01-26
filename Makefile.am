@@ -101,8 +101,9 @@ libclang17_a_CXXFLAGS = $(filter-out $(old_standards), $(sstmac_clang_CXXFLAGS))
 
 library_includedir=$(includedir)/memoization
 library_include_HEADERS = clang/memoization/capture.h
+endif
 
-# Install replacement headers directory
+# Install replacement headers directory (outside HAVE_CXX17, inside HAVE_CLANG)
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
@@ -121,9 +122,6 @@ install-data-local:
 	@# Remove .in files that have been configured
 	rm -f $(DESTDIR)$(includedir)/replacements/sstmac_pthread_clear.h.in
 	rm -f $(DESTDIR)$(includedir)/replacements/libraries/pthread/sstmac_sys_types.h.in
-
-# Note: Replacement libraries will be added later when they are built
-endif
 
 ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
  -Wl,-rpath,@CLANG_INSTALL_DIR@/lib \

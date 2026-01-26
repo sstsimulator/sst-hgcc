@@ -147,24 +147,14 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
   clangCmdArr.append("--")
   
   # Add conditional replacement headers based on --replacements parameter
-  # Note: A temporary directory with only the specified headers is already added to 
-  # args.I at position 0 in hgcclib.py. We need to add it to the clang command too.
+  # The temp directory with only the specified headers is added to the include path,
+  # so when code does #include <limits.h>, it finds the replacement first.
+  # The replacement then uses #include_next to chain to the system header.
   if hasattr(ctx, 'requestedReplacements') and ctx.requestedReplacements:
     # Use the temp directory created in hgcclib.py (contains only specified headers)
     if hasattr(ctx, 'tempReplacementsDir'):
       clangCmdArr.append("-I")
       clangCmdArr.append(ctx.tempReplacementsDir)
-    
-    # Force include each replacement header to ensure it's used
-    replacementsPath = os.path.join(prefix, "include", "replacements")
-    for replacement in ctx.requestedReplacements:
-      replacementFile = os.path.join(replacementsPath, replacement)
-      if os.path.exists(replacementFile):
-        clangCmdArr.append("-include")
-        clangCmdArr.append(replacementFile)
-        print("DEBUG: Force including %s" % replacementFile)
-      else:
-        print("Warning: Replacement header '%s' not found at %s" % (replacement, replacementFile))
   #all of the compiler options go after the -- separator
   #fix intrinsics which might not be known to clang if using a different compiler
   #intrinsicsFixerPath = os.path.join(cleanFlag(includeDirElements), "mercury", "libraries", "system", "replacements", "fixIntrinsics.h")

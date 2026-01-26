@@ -431,13 +431,10 @@ def run(typ, extraLibs=""):
   if args.std == "c++98": args.std = "c++1y"
 
   #if we are in simulate mode, we have to create the "replacement" environment
-  #we do this by rerouting all the headers to SST/macro headers
+  #Replacement headers are ONLY added when --replacements flag is specified (handled above)
   if ctx.simulateMode():
     include_root = cleanFlag(includeDirElements)
-    repldir = os.path.join(include_root, "mercury", "libraries", "replacements")
-    repldir = cleanFlag(repldir)
     args.I.append(os.path.join(include_root, "sumi"))
-    args.I.insert(0,repldir)
 
     #also force inclusion of wrappers
     if typ == "c++":
@@ -447,8 +444,11 @@ def run(typ, extraLibs=""):
     #ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "libraries", "compute", "compute_library.h") )
     ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "common", "skeleton.h") )
 
-    if not args.disable_mpi:
-      args.I.insert(0,os.path.join(repldir, "mpi"))
+    # MPI replacements only if --replacements includes mpi headers
+    if not args.disable_mpi and hasattr(ctx, 'tempReplacementsDir'):
+      mpiReplacementDir = os.path.join(ctx.tempReplacementsDir, "mpi")
+      if os.path.isdir(mpiReplacementDir):
+        args.I.insert(0, mpiReplacementDir)
 
   sysargs = sys.argv[1:]
   asmFiles = False

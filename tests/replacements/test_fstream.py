@@ -25,9 +25,9 @@ if __name__ == "__main__":
     platform = PlatformDefinition.getCurrentPlatform()
 
     platform.addParamSet("operating_system", {
-        "app1.name" : "test_tls",
-        "app1.exe"  : "test_tls.so",
-	"app1.exe_library_name"  : "test_tls",
+        "app1.name" : "test_fstream",
+        "app1.exe"  : "test_fstream.so",
+	"app1.exe_library_name"  : "test_fstream",
         "app1.dependencies" : ["sumi"],
 	"app1.libraries" : [
 			    "computelibrary:ComputeLibrary",
