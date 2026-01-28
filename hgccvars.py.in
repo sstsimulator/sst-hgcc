@@ -60,6 +60,7 @@ sstCppFlags = [
 "@CPPFLAGS@",
 "-I@sst_prefix@/include",
 "-I@SST_ELEMENTS@/include/sst/elements",
+"-I@SST_ELEMENTS@/include/sst/elements/mercury",
 "-I@SST_ELEMENTS@/include/sst/elements/mercury/common",
 "-I@SST_ELEMENTS@/include/sst/elements/mercury/software/libraries",
 "-I@SST_ELEMENTS@/include/sst/elements/sumi",

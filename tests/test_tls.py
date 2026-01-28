@@ -26,11 +26,10 @@ if __name__ == "__main__":
 
     platform.addParamSet("operating_system", {
         "app1.name" : "test_tls",
-        "app1.exe"  : "test_tls.so",
-        "app1.libraries" : ["SystemLibrary:libsystemlibrary.so",
-                            "ComputeLibrary:libcomputelibrary.so",
-                            "SimTransport:libsumi.so",
-                            "MpiApi:libmask_mpi.so"],
+        "app1.exe_library_name"  : "test_tls",
+        "app1.dependencies" : ["sumi", ],
+        "app1.libraries" : ["computelibrary:ComputeLibrary",
+                            "mask_mpi:MpiApi",],
     })
 
     topo = topoSingle()
