@@ -142,8 +142,19 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
   clangCmdArr = [clangDeglobal]
   clangCmdArr.append(ppTmpFile)
   clangCmdArr.extend(ctx.clangArgs)
+  
   clangCmdArr.append("--system-includes=%s" % defaultIncludePaths)
   clangCmdArr.append("--")
+  
+  # Add conditional replacement headers based on --replacements parameter
+  # The temp directory with only the specified headers is added to the include path,
+  # so when code does #include <limits.h>, it finds the replacement first.
+  # The replacement then uses #include_next to chain to the system header.
+  if hasattr(ctx, 'requestedReplacements') and ctx.requestedReplacements:
+    # Use the temp directory created in hgcclib.py (contains only specified headers)
+    if hasattr(ctx, 'tempReplacementsDir'):
+      clangCmdArr.append("-I")
+      clangCmdArr.append(ctx.tempReplacementsDir)
   #all of the compiler options go after the -- separator
   #fix intrinsics which might not be known to clang if using a different compiler
   #intrinsicsFixerPath = os.path.join(cleanFlag(includeDirElements), "mercury", "libraries", "system", "replacements", "fixIntrinsics.h")

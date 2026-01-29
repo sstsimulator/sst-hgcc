@@ -74,6 +74,13 @@ CHECK_MPI_PARALLEL()
 CHECK_SST_CORE()
 CHECK_SST_ELEMENTS()
 
+AC_ARG_ENABLE([use-replacements],
+  [AS_HELP_STRING([--enable-use-replacements], [Enable replacement STL headers])],
+  [use_replacements=yes],
+  [use_replacements=no]
+)
+
+CHECK_STL_REPLACEMENT_HEADERS($[use-replacements])
 os=`$srcdir/config_tools/get_os`
 
 if test "X$os" = "Xubuntu"; then
@@ -127,7 +134,8 @@ echo "CXXFLAGS           $CXXFLAGS $SST_CXXFLAGS $STD_CXXFLAGS"
 echo "CPPFLAGS           $CPPFLAGS"
 echo "LDFLAGS            $LDFLAGS"
 echo "C++ Standard       $cxxstd"
-echo
+echo "Replacements	 $USE_REPLACEMENT_HEADERS"
+echo 
 
 echo "Python             $pyexe"
 echo "Clang Toolchain    $found_clang"

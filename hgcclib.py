@@ -306,6 +306,7 @@ def run(typ, extraLibs=""):
   parser.add_argument("-fvisibility", type=str, help="control the visibility of certain symbols")
   parser.add_argument("--host-cxx", type=str, help="override the C++ compiler used underneath from the one used to build SST/macro")
   parser.add_argument("--host-cc", type=str, help="override the C compiler used underneath from the one used to build SST/macro")
+  parser.add_argument("--replacements", type=str, help="comma-separated list of replacement headers to include (e.g., 'omp.h,pthread.h')")
   
   args, extraArgs = parser.parse_known_args()
 
@@ -322,6 +323,40 @@ def run(typ, extraLibs=""):
   ctx.typ = typ
   ctx.sstCore = sstCore
   ctx.hasClang = bool(clangCppFlagsStr)
+  
+  # Process replacements parameter
+  ctx.requestedReplacements = []
+  if args.replacements:
+    ctx.requestedReplacements = [r.strip() for r in args.replacements.split(',') if r.strip()]
+    
+    # Create a temporary directory with only the specified replacement headers
+    # This ensures only the requested headers are available as replacements
+    import tempfile
+    import shutil
+    replacementsPath = os.path.join(prefix, "include", "replacements")
+    tempReplacementsDir = tempfile.mkdtemp()
+    
+    # Copy only the specified replacement headers to the temp directory
+    for replacement in ctx.requestedReplacements:
+      replacementFile = os.path.join(replacementsPath, replacement)
+      if os.path.exists(replacementFile):
+        # Handle subdirectory headers (e.g., "linux/limits.h")
+        if "/" in replacement:
+          tempHeader = os.path.join(tempReplacementsDir, replacement)
+          os.makedirs(os.path.dirname(tempHeader), exist_ok=True)
+          shutil.copy2(replacementFile, tempHeader)
+        else:
+          # Regular headers
+          shutil.copy2(replacementFile, os.path.join(tempReplacementsDir, replacement))
+      else:
+        print("Warning: Replacement header '%s' not found at %s" % (replacement, replacementFile))
+    
+    # Store the temp directory path for cleanup later
+    ctx.tempReplacementsDir = tempReplacementsDir
+    
+    # Add temp directory to args.I at position 0 for highest priority
+    # This ensures only the specified headers are available as replacements
+    args.I.insert(0, tempReplacementsDir)
 
   # AC_PROG_CXX likes to stick CXXFLAGS into CXX
   ctx.cxx = ctx.cxx.split(" ")[0]
@@ -396,13 +431,10 @@ def run(typ, extraLibs=""):
   if args.std == "c++98": args.std = "c++1y"
 
   #if we are in simulate mode, we have to create the "replacement" environment
-  #we do this by rerouting all the headers to SST/macro headers
+  #Replacement headers are ONLY added when --replacements flag is specified (handled above)
   if ctx.simulateMode():
     include_root = cleanFlag(includeDirElements)
-    repldir = os.path.join(include_root, "mercury", "libraries", "replacements")
-    repldir = cleanFlag(repldir)
     args.I.append(os.path.join(include_root, "sumi"))
-    args.I.insert(0,repldir)
 
     #also force inclusion of wrappers
     if typ == "c++":
@@ -412,8 +444,11 @@ def run(typ, extraLibs=""):
     #ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "libraries", "compute", "compute_library.h") )
     ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "common", "skeleton.h") )
 
-    if not args.disable_mpi:
-      args.I.insert(0,os.path.join(repldir, "mpi"))
+    # MPI replacements only if --replacements includes mpi headers
+    if not args.disable_mpi and hasattr(ctx, 'tempReplacementsDir'):
+      mpiReplacementDir = os.path.join(ctx.tempReplacementsDir, "mpi")
+      if os.path.isdir(mpiReplacementDir):
+        args.I.insert(0, mpiReplacementDir)
 
   sysargs = sys.argv[1:]
   asmFiles = False

@@ -45,7 +45,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "astVisitor.h"
 #include "replacePragma.h"
 #include "computePragma.h"
-#include <sys/time.h>
+#include  <sys/time.h>
 #include <iostream>
 #include <fstream>
 #include <hgcc_config.h>

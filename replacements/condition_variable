@@ -1,0 +1,14 @@
+//#ifndef HGCC_INSIDE_STL
+//#define HGCC_INSIDE_STL
+//
+//#include <hgcc_pthread_clear.h>
+//
+//#include_next <condition_variable>
+//#undef HGCC_INSIDE_STL
+//
+//#include <hgcc_pthread_return.h>
+//
+//#else
+//#include_next <condition_variable>
+//#endif
+

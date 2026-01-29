@@ -1,0 +1,41 @@
+#ifndef cstring_header_h_included
+#define cstring_header_h_included
+
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
+#define CSTRING_OWNS_STL
+#include <hgcc_pthread_clear.h>
+#include <clear_symbol_macros.h>
+#endif
+
+#include_next <cstring>
+
+#ifdef HGCC_INSIDE_STL
+#define sstmac_must_return_memcpy
+#define sstmac_must_return_memset
+#else
+#ifndef memset
+#define memset sstmac_memset
+#endif
+#ifndef memcpy
+#define memcpy sstmac_memcpy
+#endif
+#endif
+
+namespace std {
+using ::sstmac_memset;
+using ::sstmac_memcpy;
+//void* sstmac_memset(void* ptr, int value, unsigned long  sz);
+//void* sstmac_memcpy(void* dst, const void* src, unsigned long sz);
+}
+
+#ifdef CSTRING_OWNS_STL
+#undef CSTRING_OWNS_STL
+#undef HGCC_INSIDE_STL
+#include <return_symbol_macros.h>
+#include <hgcc_pthread_return.h>
+#endif
+
+
+#endif
+

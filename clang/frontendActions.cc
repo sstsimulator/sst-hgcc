@@ -52,6 +52,8 @@ Questions? Contact sst-macro-help@sandia.gov
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <string>
 #include <hgcc_config.h>
 
 using namespace clang;
@@ -72,6 +74,10 @@ ReplaceAction::BeginSourceFileAction(CompilerInstance &CI)
 #endif
 {
   ci_ = &CI;
+  
+  // Note: Replacement headers are handled via -include flags in hgcompile.py
+  // This ensures they are processed before any user code, effectively replacing system headers
+  
   return true;
 }
 

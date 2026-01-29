@@ -1,0 +1,23 @@
+#ifndef memory_header_included
+#define memory_header_included
+
+#ifndef HGCC_INSIDE_STL
+#define HGCC_INSIDE_STL
+#define MEMORY_OWNS_STL
+#include <hgcc_pthread_clear.h>
+#include <clear_symbol_macros.h>
+#endif
+
+#include_next <memory>
+
+#ifdef MEMORY_OWNS_STL
+#undef MEMORY_OWNS_STL
+#undef HGCC_INSIDE_STL
+#include <return_symbol_macros.h>
+#include <hgcc_pthread_return.h>
+#endif
+
+
+#endif
+
+
