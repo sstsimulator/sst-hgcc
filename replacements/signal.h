@@ -47,7 +47,7 @@ Questions? Contact sst-macro-help@sandia.gov
 #ifndef HGCC_INSIDE_STL
 #define HGCC_INSIDE_STL
 #define SIGNAL_H_OWNS_STL
-#include <hgcc_pthread_clear.h>
+#include <ssthg_pthread_clear.h>
 #endif
 
 #include_next <signal.h>

@@ -50,7 +50,7 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifndef HGCC_INSIDE_STL
 #define HGCC_INSIDE_STL
-#include <hgcc_pthread_clear.h>
+#include <ssthg_pthread_clear.h>
 #include <clear_symbol_macros.h>
 #define STDLIB_OWNS_STL
 #endif

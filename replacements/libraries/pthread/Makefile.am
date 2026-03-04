@@ -19,21 +19,21 @@ AM_FCFLAGS = -I$(top_builddir) -I$(top_srcdir) -m32 -m64
 libhgcc_pthread_la_LDFLAGS = 
 
 libhgcc_pthread_la_SOURCES = \
-  hgcc_pthread.cc \
-  hgcc_pthread_runner.cc \
-  hgcc_sched.cc 
+  sstmac_pthread.cc \
+  sstmac_pthread_runner.cc \
+  sstmac_sched.cc 
 
 nodist_library_include_HEADERS = \
-  hgcc_sys_types.h
+  sstmac_sys_types.h
 
 nobase_library_include_HEADERS = \
-  hgcc_cpu_set.h \
-  hgcc_pthread_impl.h \
-  hgcc_pthread_macro.h \
-  hgcc_pthread_clear_macros.h \
-  hgcc_pthread.h \
-  hgcc_pthread_runner.h \
-  hgcc_sched.h \
-  hgcc_sched_macro.h \
-  hgcc_sched_clear_macros.h 
+  sstmac_cpu_set.h \
+  sstmac_pthread_impl.h \
+  sstmac_pthread_macro.h \
+  sstmac_pthread_clear_macros.h \
+  sstmac_pthread.h \
+  sstmac_pthread_runner.h \
+  sstmac_sched.h \
+  sstmac_sched_macro.h \
+  sstmac_sched_clear_macros.h 
 

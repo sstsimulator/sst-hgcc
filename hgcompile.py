@@ -103,6 +103,8 @@ def addLlvmCompile(ctx, llFile, objFile, args, cmds):
   cmds.append([None,cmdArr,[objFile]])
 
 def addModeDefines(ctx, args):
+  if getattr(ctx, "is_conftest", False):
+    return
   if ctx.mode != ctx.COMPONENT:
     # this breaks current Mercury way of doing things
     #ctx.defines.append("SST_HG_EXTERNAL")
@@ -241,6 +243,7 @@ def addComponentCompile(ctx, sourceFile, outputFile, args, cmds):
     buildArgs.append("-include")
     buildArgs.append(entry)
   buildArgs.extend(map(lambda x: "-D%s" % x, ctx.defines))
+  buildArgs.extend(map(lambda x: "-D%s" % x, getattr(args, "D", [])))
   buildArgs.extend(map(lambda x: "-I%s" % x, args.I)) 
   buildArgs.extend(ctx.cppFlags)
   buildArgs.extend(ctx.compilerFlags)
@@ -256,6 +259,7 @@ def addCompile(ctx, sourceFile, outputFile, args, cmds):
     ppArgs.append("-include")
     ppArgs.append(entry)
   ppArgs.extend(map(lambda x: "-D%s" % x, ctx.defines))
+  ppArgs.extend(map(lambda x: "-D%s" % x, getattr(args, "D", [])))
   ppArgs.extend(map(lambda x: "-I%s" % x, args.I))
   ppArgs.extend(ctx.cppFlags)
   ppArgs.extend(ctx.compilerFlags)

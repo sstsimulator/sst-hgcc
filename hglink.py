@@ -46,24 +46,39 @@ def addLink(ctx, ldTarget, args, cmds, objects, toExe=False):
   #xargs includes the list of object files
   from hgccvars import prefix
   from hgccvars import soFlagsStr
-  ldpathMaker = "-Wl,-rpath,%s/lib" % prefix
-  linkCmdArr = [ctx.ld, ldpathMaker] 
-  linkCmdArr.extend(ctx.ldFlags)
-  if not toExe:
-    linkCmdArr.extend(soFlagsStr.split())
-  linkCmdArr.extend(ctx.libs)
-  linkCmdArr.extend(ctx.compilerFlags)
-  linkCmdArr.extend(map(lambda x: "-L%s" % x, args.L)) #add all the -L flags for now
-  linkCmdArr.extend(map(lambda x: "-l%s" % x, args.l)) #add all the -l flags for now
+
+  is_conftest = getattr(ctx, 'is_conftest', False)
+
+  if is_conftest:
+    # Conftest (configure test): produce a plain executable without SST
+    # library paths or flags that break runtime (e.g. -flat_namespace on
+    # macOS causes dyld to try resolving SST symbols and abort).
+    bad_flags = {"-Wl,-flat_namespace", "-flat_namespace"}
+    linkCmdArr = [ctx.ld]
+    for f in ctx.compilerFlags:
+      if f not in bad_flags:
+        linkCmdArr.append(f)
+    linkCmdArr.extend(map(lambda x: "-L%s" % x, args.L))
+    linkCmdArr.extend(map(lambda x: "-l%s" % x, args.l))
+  else:
+    ldpathMaker = "-Wl,-rpath,%s/lib" % prefix
+    linkCmdArr = [ctx.ld, ldpathMaker] 
+    linkCmdArr.extend(ctx.ldFlags)
+    if not toExe:
+      linkCmdArr.extend(soFlagsStr.split())
+    linkCmdArr.extend(ctx.libs)
+    linkCmdArr.extend(ctx.compilerFlags)
+    linkCmdArr.extend(map(lambda x: "-L%s" % x, args.L))
+    linkCmdArr.extend(map(lambda x: "-l%s" % x, args.l))
   
   # Add conditional replacement libraries based on --replacements parameter
   if hasattr(ctx, 'requestedReplacements') and ctx.requestedReplacements:
     replacementsLibPath = prefix + "/lib"
     
-    # Map replacement headers to their corresponding libraries
+    # Map replacement headers to their corresponding libraries.
+    # pthread.h is omitted: Mercury's pthread impl is in the SST element, not a separate lib.
     replacementLibMap = {
       'omp.h': 'hgcc_omp',
-      'pthread.h': 'hgcc_pthread', 
       'blas.h': 'hgcc_blas',
       'cblas.h': 'hgcc_blas',
       'bgp.h': 'hgcc_machines'

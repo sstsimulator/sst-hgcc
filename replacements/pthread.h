@@ -43,7 +43,12 @@ Questions? Contact sst-macro-help@sandia.gov
 */
 #if defined(HGCC_INSIDE_STL) || defined(HGCC_NO_REPLACEMENTS)
 #include_next <pthread.h>
+#elif defined(SST_HG_USE_MERCURY_PTHREAD)
+/* Full simulated pthread from mercury (for simulator builds). */
+#include <sst/elements/mercury/operating_system/libraries/pthread/hg_pthread.h>
 #else
-#include <libraries/pthread/hgcc_pthread.h>
+/* System pthread first, then hgcc add-ons (e.g. pthread_spinlock_t on macOS). */
+#include_next <pthread.h>
+#include <hgcc/libraries/pthread/hgcc_pthread_spinlock.h>
 #endif
 

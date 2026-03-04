@@ -20,7 +20,7 @@ bin_SCRIPTS = \
 
 AM_LDFLAGS = -ldl
 
-EXTRA_DIST = clang
+EXTRA_DIST = clang hgcc_include
 
 if HAVE_CLANG
 
@@ -80,7 +80,7 @@ if USE_REPLACEMENT_HEADERS
   #replacements/vector \
   #replacements/stdio.h \
   #replacements/signal.h \
-  #replacements/sstmac_pthread_clear.h \
+  #replacements/ssthg_pthread_clear.h \
   #replacements/wait.h \
   #replacements/sys/time.h \
   #replacements/sys/signal.h 
@@ -103,8 +103,10 @@ library_includedir=$(includedir)/memoization
 library_include_HEADERS = clang/memoization/capture.h
 endif
 
-# Install replacement headers directory (outside HAVE_CXX17, inside HAVE_CLANG)
+# Install hgcc framework headers + replacement headers when building with clang
 install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(includedir)/hgcc/libraries/pthread
+	cp $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/linux
@@ -112,15 +114,13 @@ install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries/pthread
 	cp -r $(srcdir)/replacements/* $(DESTDIR)$(includedir)/replacements/
-	@# Copy configured files from build directory (overwrite .in files)
-	if test -f $(builddir)/replacements/sstmac_pthread_clear.h; then \
-		cp $(builddir)/replacements/sstmac_pthread_clear.h $(DESTDIR)$(includedir)/replacements/; \
+	@if test -f $(builddir)/replacements/ssthg_pthread_clear.h; then \
+		cp $(builddir)/replacements/ssthg_pthread_clear.h $(DESTDIR)$(includedir)/replacements/; \
 	fi
-	if test -f $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h; then \
+	@if test -f $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h; then \
 		cp $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h $(DESTDIR)$(includedir)/replacements/libraries/pthread/; \
 	fi
-	@# Remove .in files that have been configured
-	rm -f $(DESTDIR)$(includedir)/replacements/sstmac_pthread_clear.h.in
+	rm -f $(DESTDIR)$(includedir)/replacements/ssthg_pthread_clear.h.in
 	rm -f $(DESTDIR)$(includedir)/replacements/libraries/pthread/sstmac_sys_types.h.in
 
 ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
@@ -154,4 +154,16 @@ ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
 # ssthg_clang_LDFLAGS += -lclang-cpp
 # endif
 
+else
+# When not building with clang, still install hgcc + replacement headers (e.g. pthread replacement for MVAPICH2)
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(includedir)/hgcc/libraries/pthread
+	cp $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/linux
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/mpi
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries
+	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries/pthread
+	cp -r $(srcdir)/replacements/* $(DESTDIR)$(includedir)/replacements/
 endif

@@ -228,6 +228,8 @@ class Context:
       self.mode = mode
 
 def run(typ, extraLibs=""):
+  """Hgcc/hg++ entry. For Mercury: build apps as shared libs; run via sst config.py
+  with app1.name and app1.exe_library_name set. No main library or sstmac required."""
   import os
   import sys
   import platform
@@ -247,6 +249,7 @@ def run(typ, extraLibs=""):
   needfPIC = True
 
   sstmacExe = cleanFlag(os.path.join(prefix, "bin", "sstmac"))
+  hasSstmacRuntime = os.path.isfile(sstmacExe) and os.access(sstmacExe, os.X_OK)
 
   verbose = False     #whether to print verbose output
   if "SST_HG_VERBOSE" in os.environ:
@@ -311,6 +314,16 @@ def run(typ, extraLibs=""):
   args, extraArgs = parser.parse_known_args()
 
   ctx = Context()
+  _out = args.output or ""
+  ctx.is_conftest = (os.path.basename(_out) == "conftest" or os.path.basename(_out) == "conftest.exe")
+  # Detect configure tests by source filename (autoconf uses conftest.cpp); must be before replacements
+  if not ctx.is_conftest and extraArgs:
+    for a in extraArgs:
+      s = a.strip().strip("'")
+      if s.endswith('.cpp') or s.endswith('.cc') or s.endswith('.c') or s.endswith(".cxx") or s.endswith(".C"):
+        if os.path.basename(s).startswith("conftest."):
+          ctx.is_conftest = True
+        break
 
   for entry in sstCppFlags:
     clean = cleanFlag(entry)
@@ -324,9 +337,9 @@ def run(typ, extraLibs=""):
   ctx.sstCore = sstCore
   ctx.hasClang = bool(clangCppFlagsStr)
   
-  # Process replacements parameter
+  # Process replacements parameter (skip for conftest so configure tests see real system headers)
   ctx.requestedReplacements = []
-  if args.replacements:
+  if args.replacements and not ctx.is_conftest:
     ctx.requestedReplacements = [r.strip() for r in args.replacements.split(',') if r.strip()]
     
     # Create a temporary directory with only the specified replacement headers
@@ -351,12 +364,46 @@ def run(typ, extraLibs=""):
       else:
         print("Warning: Replacement header '%s' not found at %s" % (replacement, replacementFile))
     
+    # When pthread.h replacement is active, Mercury's hg_pthread_macro.h
+    # #defines type names like pthread_key_t → hg_pthread_key_t.  System
+    # headers that internally typedef pthread types (e.g. sys/types.h on
+    # macOS) must also go through the clear/return pattern, so we
+    # implicitly add them as replacement headers.
+    implicitDeps = {
+      "pthread.h": ["sys/types.h"],
+    }
+    for repl in list(ctx.requestedReplacements):
+      for dep in implicitDeps.get(repl, []):
+        if dep not in ctx.requestedReplacements:
+          depSrc = os.path.join(replacementsPath, dep)
+          if os.path.exists(depSrc):
+            depDst = os.path.join(tempReplacementsDir, dep)
+            os.makedirs(os.path.dirname(depDst), exist_ok=True)
+            shutil.copy2(depSrc, depDst)
+
+    # Copy helper headers that replacement headers #include internally.
+    # These must live in the temp dir rather than adding the full replacements/
+    # directory to the include path, because that would cause #include_next to
+    # find a second copy of the replacement header instead of the real system header.
+    helperHeaders = [
+      "ssthg_pthread_clear.h",
+      "hgcc_pthread_return.h",
+      "clear_symbol_macros.h",
+      "return_symbol_macros.h",
+    ]
+    for helper in helperHeaders:
+      helperSrc = os.path.join(replacementsPath, helper)
+      if os.path.exists(helperSrc):
+        shutil.copy2(helperSrc, os.path.join(tempReplacementsDir, helper))
+
     # Store the temp directory path for cleanup later
     ctx.tempReplacementsDir = tempReplacementsDir
     
     # Add temp directory to args.I at position 0 for highest priority
     # This ensures only the specified headers are available as replacements
     args.I.insert(0, tempReplacementsDir)
+    # Add prefix include so replacement headers can pull in hgcc framework (e.g. hgcc/libraries/pthread)
+    args.I.insert(1, os.path.join(prefix, "include"))
 
   # AC_PROG_CXX likes to stick CXXFLAGS into CXX
   ctx.cxx = ctx.cxx.split(" ")[0]
@@ -432,7 +479,8 @@ def run(typ, extraLibs=""):
 
   #if we are in simulate mode, we have to create the "replacement" environment
   #Replacement headers are ONLY added when --replacements flag is specified (handled above)
-  if ctx.simulateMode():
+  #For conftest (configure compiler check), skip SST/skeleton so we build a plain executable.
+  if ctx.simulateMode() and not ctx.is_conftest:
     include_root = cleanFlag(includeDirElements)
     args.I.append(os.path.join(include_root, "sumi"))
 
@@ -482,10 +530,11 @@ def run(typ, extraLibs=""):
     ctx.cxxFlags.append("-fPIC")
     ctx.cFlags.append("-fPIC")
 
-  #for now, just assume any time an exe name "conftest"
-  #is being built, it comes from configure
-  if args.output == "conftest":
-    makeBashExe = True
+  # When building "conftest" (C or C++ configure test), produce a normal
+  # executable and do not use the SST wrapper or -lsstmac_main (mercury/hgcc has no sstmac).
+  is_conftest = ctx.is_conftest
+  if is_conftest:
+    makeBashExe = False
 
   for entry in sstLdFlags:
     flag = cleanFlag(entry)
@@ -528,10 +577,7 @@ def run(typ, extraLibs=""):
       #always use c++ for linking since we are bringing a bunch of sstmac C++ into the game
       ctx.ld = ctx.cxx
     else:
-      # this mode doesn't work any more (skeletonization uses code that is invalid with C compiler)
-      #ctx.ld = ctx.cc
-      sys.stderr.write("ERROR: Compiling C requires Clang autoskeletonizer\n")
-      sys.exit(1)
+      ctx.ld = ctx.cxx
     if args.std:
       ctx.cFlags.append("-std=%s" % args.std)
     elif sstCArgs.std:
@@ -579,7 +625,7 @@ def run(typ, extraLibs=""):
       makeBashExe = False
 
   exeName = ldTarget #maybe needed later
-  if makeBashExe:
+  if makeBashExe and hasSstmacRuntime:
     ldTarget += "_exe"
 
   runLinker = not args.preprocess and not args.compile
@@ -611,7 +657,7 @@ def run(typ, extraLibs=""):
       srcName = os.path.split(srcFile)[-1]
       target = swapSuffix("o", srcName)
     generatedObjects.append(target)
-    if ctx.srcToSrc():
+    if ctx.srcToSrc() and not ctx.is_conftest:
       addSrc2SrcCompile(ctx, srcFile, target, args, cmds)
     elif ctx.mode == ctx.COMPONENT:
       addComponentCompile(ctx, srcFile, target, args, cmds)
@@ -622,8 +668,10 @@ def run(typ, extraLibs=""):
   allObjects.extend(givenObjects)
   if runLinker:
     shouldMakeExe = memoizing
+    if is_conftest:
+      shouldMakeExe = True
     addLink(ctx, ldTarget, args, cmds, allObjects, shouldMakeExe)
-    if makeBashExe:
+    if makeBashExe and hasSstmacRuntime:
       objects = allObjects[:]
       objects.append("-lsstmac_main")
       addLink(ctx, ldTarget + "_validate", args, cmds, objects, toExe=True)
@@ -632,7 +680,7 @@ def run(typ, extraLibs=""):
   rc = runAllCmds(cmds, verbose, delTempSourceFiles, delTempObjectFiles, clangBin)
   if not rc == 0: return rc
 
-  if makeBashExe:
+  if makeBashExe and hasSstmacRuntime:
     rc = createBashWrapper(compiler, exeName, ldTarget, sstCore, sstmacExe)
     if not rc == 0: return rc
 
