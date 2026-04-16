@@ -50,7 +50,7 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifndef HGCC_INSIDE_STL
 #define HGCC_INSIDE_STL
-#include <hgcc_pthread_clear.h>
+#include <ssthg_pthread_clear.h>
 #include <clear_symbol_macros.h>
 #define STDLIB_OWNS_STL
 #endif
@@ -72,6 +72,16 @@ extern void hgcc_free(void* ptr);
 char* hgcc_getenv(const char* name);
 int hgcc_putenv(char* input);
 int hgcc_setenv(const char* name, const char* val, int overwrite);
+
+/* Neuter glibc __attr_dealloc* for Clang parse (Linux). */
+#if defined(__linux__)
+#ifndef __attr_dealloc
+#define __attr_dealloc(...)
+#endif
+#ifndef __attr_dealloc_free
+#define __attr_dealloc_free
+#endif
+#endif
 
 #include_next <stdlib.h>
 

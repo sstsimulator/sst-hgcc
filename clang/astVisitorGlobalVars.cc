@@ -88,7 +88,8 @@ getFxnTypedef(clang::SourceLocation loc, const Type* ty, const std::string& name
   //this is horrible... but the only way I know
   auto pos = typeName.find(')');
   if (pos == std::string::npos){
-    internalError(loc, "failed typedef on " + typeName);
+    // Non-spliceable typedef token (e.g. MV2 function ptr typedef).
+    return "typedef " + typeName + " " + name;
   }
   std::string tdefName = "typedef " + typeName.substr(0, pos) + name +typeName.substr(pos);
   return tdefName;
@@ -123,9 +124,6 @@ SkeletonASTVisitor::setupGlobalReplacement(VarDecl *D, const std::string& namePr
                                            bool useAccessor, bool isFxnStatic, bool needFullNs)
 {
   bool threadLocal = isThreadLocal(D);
-  if (threadLocal){
-    errorAbort(D, "thread local variables not yet allowed");
-  }
 
   std::string uniqueName = namePrefix + D->getNameAsString();
 
@@ -208,6 +206,9 @@ SkeletonASTVisitor::setupGlobalReplacement(VarDecl *D, const std::string& namePr
         //we have no type we can actually refer to, but that's okay
         //just make it an int
         var.typeStr = "int";
+      } else if (var.typeStr.find("unnamed") != std::string::npos){
+        // Clang "unnamed enum at …" is not a usable type string.
+        var.typeStr = "__typeof__(" + D->getNameAsString() + ")";
       }
     }
     var.retType = var.typeStr + "*";
@@ -370,10 +371,13 @@ SkeletonASTVisitor::isGlobalDefinition(VarDecl* D, GlobalVariableReplacement* va
 bool
 SkeletonASTVisitor::setupCGlobalVar(VarDecl* D, const std::string& scopePrefix)
 {
-  Expr* init = D->hasInit() ? getUnderlyingExpr(D->getInit()) : nullptr;
+  // Keep casts in initializer (getUnderlyingExpr breaks (char*)(64)-style inits).
+  Expr* init = D->hasInit() ? D->getInit() : nullptr;
 
   std::stringstream newVarSstr;
   GlobalVariableReplacement var = setupGlobalReplacement(D, scopePrefix, false, false, true);
+  // __typeof__(sym) sizes/copies even when var.typeStr is not spellable as C.
+  const std::string initType = "__typeof__(" + D->getNameAsString() + ")";
   newVarSstr << "extern int __offset_" << var.scopeUniqueVarName << "; ";
   if (isGlobalDefinition(D, &var)){
     std::string initFxnName = "sst_hg_init_" + var.scopeUniqueVarName;
@@ -383,12 +387,14 @@ SkeletonASTVisitor::setupCGlobalVar(VarDecl* D, const std::string& scopePrefix)
     //recreate the global variable temporarily in this function,
     //but with globals refs correctly replaced
     if (init){
-      newVarSstr << var.typeStr << " initer = "
+      newVarSstr << initType << " initer = "
           << printWithGlobalsReplaced(init) << "; ";
-      newVarSstr << "memcpy(ptr, (void*) &initer, sizeof(initer));";
+      newVarSstr << "__builtin_memcpy(ptr, (void*) &initer, sizeof(initer));";
+    } else {
+      newVarSstr << "__builtin_memset(ptr, 0, sizeof(" << initType << "));";
     }
     newVarSstr << " } ";
-    newVarSstr << "int __sizeof_" << var.scopeUniqueVarName << " = sizeof(" << var.typeStr << "); ";
+    newVarSstr << "int __sizeof_" << var.scopeUniqueVarName << " = sizeof(" << initType << "); ";
   }
   registerGlobalReplacement(D, &var);
   delayedInsertAfter(D, newVarSstr.str());
@@ -456,7 +462,13 @@ bool
 SkeletonASTVisitor::setupFunctionStaticCpp(VarDecl* D, const std::string& scopePrefix)
 {
   if (insideTemplateFxn()){
-    internalError(D, "static function variables in template functions not yet supported");
+    /* Mercury cppglobal.h uses static locals inside template functions (e.g.
+     * inplaceCppGlobal). Full deglobalization is not implemented; leave the
+     * source unchanged and skip walking initializers. */
+    warn(D,
+        "static function variables in template-dependent context: "
+        "leaving unchanged (simulated global rewrite skipped)");
+    return true;
   }
 
   FunctionDecl* outerFxn = CompilerGlobals::astContextLists.enclosingFunctionDecls.front();
@@ -482,7 +494,7 @@ SkeletonASTVisitor::setupFunctionStaticCpp(VarDecl* D, const std::string& scopeP
       initializer += var.arrayInfo->typedefName + " initer_" + var.scopeUniqueVarName
                     + "=" + printWithGlobalsReplaced(D->getInit()) + ";";
       //then memcopy from it into the original
-      initializer += " memcpy(sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
+      initializer += " __builtin_memcpy(sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
                   + ", sizeof(" + var.arrayInfo->typedefName + "));";
     }
   } else {
@@ -543,14 +555,14 @@ SkeletonASTVisitor::setupFunctionStaticC(VarDecl* D, const std::string& scopePre
     + "*)(*ptr_sst_hg_" + var.scopeUniqueVarName + "); "
    "if (sst_hg_" + var.scopeUniqueVarName + " == 0){ "
    "  sst_hg_" + var.scopeUniqueVarName + " = (" + var.typeStr + "*) malloc(sizeof(" + var.typeStr + ")); "
-   "  *ptr_sst_hg_" + var.scopeUniqueVarName + " = sstgh_" + var.scopeUniqueVarName + "; }";
+   "  *ptr_sst_hg_" + var.scopeUniqueVarName + " = sst_hg_" + var.scopeUniqueVarName + "; }";
   if (var.arrayInfo && D->hasInit()){
     //create a temp that is the original object initialzed
     //the *x = expr syntax is not valid for certain initializations
     initText += var.arrayInfo->typedefName + " initer_" + var.scopeUniqueVarName
                   + "=" + printWithGlobalsReplaced(D->getInit()) + ";";
     //then memcopy from it into the original
-    initText += " memcpy(*ptr_sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
+    initText += " __builtin_memcpy(*ptr_sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
                 + ", sizeof(" + var.arrayInfo->typedefName + "));";
   } else if (D->hasInit()){
     initText += "*sst_hg_" + var.scopeUniqueVarName + " = ("
@@ -593,6 +605,12 @@ SkeletonASTVisitor::checkStaticFileVar(VarDecl* D)
 bool
 SkeletonASTVisitor::checkGlobalVar(VarDecl* D)
 {
+  // Variables on the global whitelist are Mercury/system runtime globals that
+  // must not be rewritten to __offset_* form. Skip registration entirely so
+  // maybeReplaceGlobalUse() cannot later find them in globals_.
+  if (globalVarWhitelist_.count(D->getNameAsString())){
+    return true;
+  }
   if (isCxx()){
     return setupCppGlobalVar(D, "");
   } else {

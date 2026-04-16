@@ -52,6 +52,7 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifndef HGCC_NO_REPLACEMENTS
 #define sleep       hgcc_sleep
+#define usleep      hgcc_usleep
 #endif
 
 #define gethostname hgcc_gethostname
@@ -66,6 +67,8 @@ int hgcc_gethostname(const char* name, size_t sz);
 long hgcc_gethostid();
 
 unsigned int hgcc_sleep(unsigned int secs);
+
+int hgcc_usleep(unsigned int usecs);
 
 unsigned int hgcc_sleepUntil(double t);
 

@@ -1,0 +1,11 @@
+*.o
+*.so
+*.dylib
+*.a
+pp.*.cc
+sst.pp.*.cc
+sstGlobals.pp.*.cpp
+sstGlobals_fixed.cpp
+register_app_gen.cpp
+libmpi_nopmi.a
+__pycache__/

@@ -43,7 +43,18 @@ Questions? Contact sst-macro-help@sandia.gov
 */
 #if defined(HGCC_INSIDE_STL) || defined(HGCC_NO_REPLACEMENTS)
 #include_next <pthread.h>
+#if defined(__APPLE__) && !defined(SST_HG_USE_MERCURY_PTHREAD)
+/* macOS libc pthread: spinlock shim when pulled in under HGCC_INSIDE_STL. */
+#include <hgcc/libraries/pthread/hgcc_pthread_spinlock.h>
+#endif
+#elif defined(SST_HG_USE_MERCURY_PTHREAD)
+/* Simulated pthread (Mercury). */
+#include <sst/elements/mercury/operating_system/libraries/pthread/hg_pthread.h>
 #else
-#include <libraries/pthread/hgcc_pthread.h>
+/* System pthread + spinlock shim on macOS. */
+#include_next <pthread.h>
+#if defined(__APPLE__) && !defined(SST_HG_USE_MERCURY_PTHREAD)
+#include <hgcc/libraries/pthread/hgcc_pthread_spinlock.h>
+#endif
 #endif
 

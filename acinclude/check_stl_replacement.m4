@@ -15,7 +15,7 @@ else
   AM_CONDITIONAL([USE_REPLACEMENT_HEADERS], [false])
 fi
 AC_CONFIG_FILES([
-  replacements/sstmac_pthread_clear.h
+  replacements/ssthg_pthread_clear.h
 ])
 
 ])
