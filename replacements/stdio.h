@@ -44,6 +44,20 @@ Questions? Contact sst-macro-help@sandia.gov
 #undef stdout
 #undef stderr
 #undef printf
+
+/* Neuter glibc __attr_dealloc* for Clang parse (Linux). */
+#if defined(__linux__)
+#ifndef __attr_dealloc
+#define __attr_dealloc(...)
+#endif
+#ifndef __attr_dealloc_fclose
+#define __attr_dealloc_fclose
+#endif
+#ifndef __attr_dealloc_free
+#define __attr_dealloc_free
+#endif
+#endif
+
 #include_next <stdio.h>
 
 #ifdef __cplusplus

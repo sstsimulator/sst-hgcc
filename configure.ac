@@ -58,6 +58,17 @@ case $target_os in
 esac
 AM_CONDITIONAL([DARWIN],[test "$darwin" = true])
 
+dnl Apple ld rejects -Wl,--start-group/--end-group (GNU ld); omit on Darwin.
+if test "$darwin" = true; then
+  LINK_GROUP_START=
+  LINK_GROUP_END=
+else
+  LINK_GROUP_START="-Wl,--start-group"
+  LINK_GROUP_END="-Wl,--end-group"
+fi
+AC_SUBST([LINK_GROUP_START])
+AC_SUBST([LINK_GROUP_END])
+
 # Check compilers and environment
 dnl AC_PROG_RANLIB
 AC_PROG_CC

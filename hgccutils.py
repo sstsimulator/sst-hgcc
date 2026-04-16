@@ -29,22 +29,29 @@ def delete(files):
   import os
   os.system("rm -f %s" % (" ".join(files)))
 
-def getProcTreeHelper(mypid, arr):
-  mypid = str(mypid)
-  import configlib
-  info = configlib.getoutput("ps axo pid,ppid,comm")
-  for line in info.splitlines():
-    args = line.strip().split()
-    if args[0] == mypid:
-      arr.append(" ".join(args[2:]))
-      getProcTreeHelper(args[1], arr)
-      break
-   
-
 def getProcTree():
+  """Parent chain via ps -p (avoids full ps scan / hangs under parallel make)."""
   import os
+  import configlib
+
   arr = []
-  getProcTreeHelper(os.getpid(), arr)
+  pid = os.getpid()
+  seen = set()
+  max_depth = 256
+  for _ in range(max_depth):
+    if pid <= 0 or pid in seen:
+      break
+    seen.add(pid)
+    comm = configlib.getoutput("ps -p %d -o comm=" % pid).strip()
+    arr.append(comm if comm else "?")
+    ppid_out = configlib.getoutput("ps -p %d -o ppid=" % pid).strip()
+    try:
+      ppid = int(ppid_out.split()[0])
+    except (ValueError, IndexError):
+      break
+    if ppid == pid:
+      break
+    pid = ppid
   return arr
 
 def getProcName():

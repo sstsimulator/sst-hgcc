@@ -46,15 +46,21 @@ Questions? Contact sst-macro-help@sandia.gov
 #include "globalVarNamespace.h"
 #include "frontendActions.h"
 #include "astVisitor.h"
+#include "llvm/Support/Error.h"
 
 using namespace clang;
 using namespace clang::driver;
 using namespace clang::tooling;
 
 int main(int argc, const char** argv) {
-  auto firstOp = tooling::CommonOptionsParser::create(argc, argv, CompilerGlobals::ssthgCategoryOpt);
-  //we parse the original source, modify the pp-ed source
-  ClangTool Tool(firstOp->getCompilations(), firstOp->getSourcePathList());
-  int rc = Tool.run(newFrontendActionFactory<ReplaceAction>().get());
-  return rc;
+  llvm::Expected<CommonOptionsParser> OptsOrErr =
+      CommonOptionsParser::create(argc, argv, CompilerGlobals::ssthgCategoryOpt);
+  if (!OptsOrErr) {
+    llvm::errs() << llvm::toString(OptsOrErr.takeError()) << "\n";
+    return 1;
+  }
+  CommonOptionsParser OptionsParser = std::move(*OptsOrErr);
+  ClangTool Tool(OptionsParser.getCompilations(),
+                 OptionsParser.getSourcePathList());
+  return Tool.run(newFrontendActionFactory<ReplaceAction>().get());
 }

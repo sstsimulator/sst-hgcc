@@ -48,44 +48,56 @@ Questions? Contact sst-macro-help@sandia.gov
 #include  <sys/time.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <cstdlib>
 #include <hgcc_config.h>
 
 clang::LangOptions Printing::langOpts;
 clang::PrintingPolicy Printing::policy(Printing::langOpts);
 
 llvm::cl::OptionCategory CompilerGlobals::ssthgCategoryOpt("SST/Macro options");
+// CommonOptionsParser registers -p/extra-arg/positionals with
+// cl::sub(SubCommand::getAll()). LLVM 17+ treats options without the same
+// sub() as unrelated, so --system-includes was rejected as unknown.
 llvm::cl::opt<std::string> CompilerGlobals::includeListOpt("system-includes",
   llvm::cl::desc("Give the list of default system include paths for the pre-processing compiler"),
   llvm::cl::value_desc("list:of:paths"),
   llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()),
   llvm::cl::ValueRequired);
 llvm::cl::opt<bool> CompilerGlobals::skeletonizeOpt("skeletonize",
   llvm::cl::desc("Run skeletonization source-to-source"),
-  llvm::cl::cat(ssthgCategoryOpt));
+  llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 llvm::cl::opt<bool> CompilerGlobals::memoizeOpt("memoize",
   llvm::cl::desc("Run memoization source-to-source"),
-  llvm::cl::cat(ssthgCategoryOpt));
+  llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 llvm::cl::opt<bool> CompilerGlobals::encapsulateOpt("encapsulate",
   llvm::cl::desc("Run skeletonization source-to-source"),
-  llvm::cl::cat(ssthgCategoryOpt));
+  llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 llvm::cl::opt<bool> CompilerGlobals::shadowizeOpt("shadowize",
   llvm::cl::desc("Run memoization source-to-source"),
-  llvm::cl::cat(ssthgCategoryOpt));
+  llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 llvm::cl::opt<bool> CompilerGlobals::puppetizeOpt("puppetize",
   llvm::cl::desc("Run skeletonization source-to-source"),
-  llvm::cl::cat(ssthgCategoryOpt));
+  llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 llvm::cl::opt<bool> CompilerGlobals::verboseOpt("verbose",
   llvm::cl::desc("Print verbose source-to-source output"),
-  llvm::cl::cat(ssthgCategoryOpt));
-static llvm::cl::alias verboseAliasOpt("v",
-  llvm::cl::aliasopt(CompilerGlobals::verboseOpt),
-  llvm::cl::cat(CompilerGlobals::ssthgCategoryOpt));
+  llvm::cl::cat(ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
+/* No "-v" alias: clashes with Clang driver -v and LLVM 18 warns cl::alias vs cl::sub(). */
 llvm::cl::opt<bool> CompilerGlobals::refactorMainOpt("refactor-main",
   llvm::cl::desc("Refactor main, rerouting to SST/macro main wrapper"),
-  llvm::cl::cat(CompilerGlobals::ssthgCategoryOpt));
+  llvm::cl::cat(CompilerGlobals::ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 llvm::cl::opt<bool> CompilerGlobals::noRefactorMainOpt("no-refactor-main",
   llvm::cl::desc("Do not refactor main, leaving symbol as is"),
-  llvm::cl::cat(CompilerGlobals::ssthgCategoryOpt));
+  llvm::cl::cat(CompilerGlobals::ssthgCategoryOpt),
+  llvm::cl::sub(llvm::cl::SubCommand::getAll()));
 
 modes::Mode CompilerGlobals::mode;
 int CompilerGlobals::modeMask;
@@ -119,6 +131,24 @@ static std::string appendText(clang::Expr* expr, const std::string& toAppend)
   pp.print(expr);
   pp.os << toAppend;
   return pp.str();
+}
+
+static void applySystemIncludePathList(const std::string& raw)
+{
+  char fullpathBuffer[1024];
+  std::istringstream sstr(raw);
+  std::string path;
+  while (std::getline(sstr, path, ':')){
+    if (path.empty()) continue;
+    const char* fullpath_cstr = realpath(path.c_str(), fullpathBuffer);
+    if (fullpath_cstr){
+      CompilerGlobals::realSystemIncludePaths.emplace_back(fullpath_cstr);
+    } else {
+      std::cerr << "realpath(...) failed to resolve " << path
+                << ". Cannot continue." << std::endl;
+      ::abort();
+    }
+  }
 }
 
 void
@@ -212,21 +242,9 @@ CompilerGlobals::setup(clang::CompilerInstance* CI)
 
 
   if (includeListOpt.getNumOccurrences()){
-    char fullpathBuffer[1024];
-    std::istringstream sstr(includeListOpt.getValue());
-    std::string path;
-    while (std::getline(sstr, path, ':')){
-      //make sure the full paths (following symlinks)
-      //are included for checking
-      const char* fullpath_cstr = realpath(path.c_str(), fullpathBuffer);
-      if (fullpath_cstr){
-        realSystemIncludePaths.emplace_back(fullpath_cstr);
-      } else {
-        std::cerr << "realpath(...) failed to resolve " << path
-                 << ". Cannot continue." << std::endl;
-        ::abort();
-      }
-    }
+    applySystemIncludePathList(includeListOpt.getValue());
+  } else if (const char* envPaths = std::getenv("SSTHG_SYSTEM_INCLUDES")){
+    applySystemIncludePathList(envPaths);
   }
 
   const char* mainStr = getenv("SST_HG_REFACTOR_MAIN");
@@ -316,6 +334,8 @@ SkeletonASTVisitor::initReservedNames()
   globalVarWhitelist_.insert("optopt");
   globalVarWhitelist_.insert("__mb_cur_max");
   globalVarWhitelist_.insert("sst_hg_global_stacksize");
+  globalVarWhitelist_.insert("static_init_glbls_segment");
+  globalVarWhitelist_.insert("static_init_tls_segment");
   globalVarWhitelist_.insert("__stderrp");
   globalVarWhitelist_.insert("__stdinp");
 
@@ -438,7 +458,7 @@ SkeletonASTVisitor::isInSystemHeader(SourceLocation loc)
       //we have not been explicitly given a list of valid headers
       //just ignore all headers in default system paths
       for (const auto& system_path : CompilerGlobals::realSystemIncludePaths){
-        if (fullpath.startswith(system_path)){
+        if (fullpath.starts_with(system_path)){
           return true;
         }
       }
@@ -1869,7 +1889,17 @@ SkeletonASTVisitor::replaceMain(clang::FunctionDecl* mainFxn)
   if (!mainFxn->getDefinition()) return;
 
   SourceManager &SM = CompilerGlobals::SM();
-  std::string sourceFile = SM.getFileEntryForID(SM.getMainFileID())->getName().str();
+  std::string sourceFile;
+#if CLANG_VERSION_MAJOR >= 15
+  if (auto mainRef = SM.getFileEntryRefForID(SM.getMainFileID()))
+    sourceFile = mainRef->getName().str();
+  else
+    return;
+#else
+  const FileEntry* fe = SM.getFileEntryForID(SM.getMainFileID());
+  if (!fe) return;
+  sourceFile = fe->getName().str();
+#endif
   std::string suffix2 = sourceFile.substr(sourceFile.size()-2,2);
   bool isC = suffix2 == ".c";
 

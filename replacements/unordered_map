@@ -4,7 +4,7 @@
 #ifndef HGCC_INSIDE_STL
 #define HGCC_INSIDE_STL
 #define UNORDERED_MAP_OWNS_STL
-#include <sstmac_pthread_clear.h>
+#include <ssthg_pthread_clear.h>
 #include <clear_symbol_macros.h>
 #endif
 

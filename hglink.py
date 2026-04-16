@@ -42,28 +42,79 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Questions? Contact sst-macro-help@sandia.gov
 """
 
+import os
+
+
+def _conftest_strip_sst_pmi_link(flags, lib_dirs, libs):
+  """
+  Nested autoconf (e.g. hwloc under MVAPICH) inherits LDFLAGS with -lpmi and
+  -L.../sst-elements-library/ext; linking trivial conftests then loads libpmi.so
+  and fails on unresolved SST/Mercury symbols. Drop those for conftest only.
+  """
+  ext_mark = "sst-elements-library" + os.sep + "ext"
+  ext_alt = "sst-elements-library/ext"
+
+  def bad_libpath(p):
+    if not p:
+      return False
+    norm = p.replace("\\", "/")
+    return ext_alt in norm or ext_mark in p
+
+  out_flags = []
+  for f in flags:
+    if f == "-lpmi":
+      continue
+    if f.startswith("-L") and len(f) > 2 and bad_libpath(f[2:]):
+      continue
+    out_flags.append(f)
+
+  out_L = [p for p in (lib_dirs or []) if not bad_libpath(p)]
+  out_l = [x for x in (libs or []) if x != "pmi"]
+  return out_flags, out_L, out_l
+
+
 def addLink(ctx, ldTarget, args, cmds, objects, toExe=False):
   #xargs includes the list of object files
   from hgccvars import prefix
   from hgccvars import soFlagsStr
-  ldpathMaker = "-Wl,-rpath,%s/lib" % prefix
-  linkCmdArr = [ctx.ld, ldpathMaker] 
-  linkCmdArr.extend(ctx.ldFlags)
-  if not toExe:
-    linkCmdArr.extend(soFlagsStr.split())
-  linkCmdArr.extend(ctx.libs)
-  linkCmdArr.extend(ctx.compilerFlags)
-  linkCmdArr.extend(map(lambda x: "-L%s" % x, args.L)) #add all the -L flags for now
-  linkCmdArr.extend(map(lambda x: "-l%s" % x, args.l)) #add all the -l flags for now
+
+  is_conftest = getattr(ctx, 'is_conftest', False)
+
+  wlFlags = getattr(ctx, 'wlFlags', [])
+
+  if is_conftest:
+    # Conftest: minimal link; drop -flat_namespace (dyld/SST issues on macOS).
+    bad_flags = {"-Wl,-flat_namespace", "-flat_namespace"}
+    linkCmdArr = [ctx.ld]
+    for f in wlFlags:
+      if f not in bad_flags:
+        linkCmdArr.append(f)
+    cflags, use_L, use_l = _conftest_strip_sst_pmi_link(
+        ctx.compilerFlags, args.L, args.l)
+    for f in cflags:
+      if f not in bad_flags:
+        linkCmdArr.append(f)
+    linkCmdArr.extend(map(lambda x: "-L%s" % x, use_L))
+    linkCmdArr.extend(map(lambda x: "-l%s" % x, use_l))
+  else:
+    ldpathMaker = "-Wl,-rpath,%s/lib" % prefix
+    linkCmdArr = [ctx.ld, ldpathMaker] 
+    linkCmdArr.extend(wlFlags)
+    linkCmdArr.extend(ctx.ldFlags)
+    if not toExe:
+      linkCmdArr.extend(soFlagsStr.split())
+    linkCmdArr.extend(ctx.libs)
+    linkCmdArr.extend(ctx.compilerFlags)
+    linkCmdArr.extend(map(lambda x: "-L%s" % x, args.L))
+    linkCmdArr.extend(map(lambda x: "-l%s" % x, args.l))
   
   # Add conditional replacement libraries based on --replacements parameter
   if hasattr(ctx, 'requestedReplacements') and ctx.requestedReplacements:
     replacementsLibPath = prefix + "/lib"
     
-    # Map replacement headers to their corresponding libraries
+    # pthread.h has no hgcc_* lib (Mercury provides pthread).
     replacementLibMap = {
       'omp.h': 'hgcc_omp',
-      'pthread.h': 'hgcc_pthread', 
       'blas.h': 'hgcc_blas',
       'cblas.h': 'hgcc_blas',
       'bgp.h': 'hgcc_machines'
