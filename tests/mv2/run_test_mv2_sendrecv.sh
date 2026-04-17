@@ -60,6 +60,59 @@ if ! ls "$OFI_EXT_LIB"/libpmi.* 1>/dev/null 2>&1; then
   exit 1
 fi
 
+_build_bundle_darwin() {
+  gcc -c mv2_mpi_wrappers.c -I "$MV2_INC"
+  gcc -bundle -undefined dynamic_lookup \
+    -Wl,-rpath,"$PREFIX/lib" \
+    -Wl,-rpath,"$OFI_EXT_LIB" \
+    -Wl,-force_load,"$LIBMPI_NOPMI" \
+    -L "$OFI_EXT_LIB" -lpmi -lfabric \
+    mv2_mpi_wrappers.o register_app_gen.o test_mv2_sendrecv.o \
+    -o libtest_mv2_sendrecv.so
+  rm -f mv2_mpi_wrappers.o
+}
+
+_build_bundle_linux() {
+  # Link libhg so userSkeletonMainInitFxn resolves and the loader can find Mercury
+  # (register_app_gen calls into libhg.so). Without this, dlopen(libtest_...) can fail
+  # silently during SST requireLibrary and no main is registered ("no main_fxns_").
+  _stub_cflags=(-fPIC)
+  # Some hosts define __linux__ but not __GLIBC__ when preprocessing the stub; keep body.
+  if [[ "$(uname -s)" == Linux ]] && command -v gcc >/dev/null 2>&1; then
+    _dM=$(echo | gcc -dM -E - 2>/dev/null || true)
+    if echo "$_dM" | grep -q '#define __linux__' && ! echo "$_dM" | grep -q '#define __GLIBC__'; then
+      _stub_cflags+=(-D__GLIBC__=1)
+    fi
+  fi
+  gcc "${_stub_cflags[@]}" -c "$SCRIPT_DIR/mv2_ld_glibc_stub.c" -o "$SCRIPT_DIR/mv2_ld_glibc_stub.o"
+  # mv2_mpi_wrappers.c provides hgcc_gethostname / hgcc_gethostid / hgcc_usleep
+  # stubs that hgcc-rewritten code in libmpi.a references via replacements/unistd.h.
+  # (The MPI_* -> PMPI_* wrappers in the same file are no-ops on Linux once the
+  # MVAPICH2 weak-alias #pragmas take effect, but they are harmless.)
+  gcc -fPIC -c mv2_mpi_wrappers.c -I "$MV2_INC" -o "$SCRIPT_DIR/mv2_mpi_wrappers.o"
+  # -Bsymbolic-functions: prefer our own (MVAPICH2) MPI_* function symbols over
+  # any MPI_* the host sst process already loaded (e.g. Open MPI pulled in as an
+  # MCA component). Without this the DSO's MPI_Init call resolves to Open MPI's
+  # MPI_Init, which is already initialized and errors "MPI_INIT called more than
+  # once". Use the -functions variant rather than plain -Bsymbolic so extern DATA
+  # symbols (e.g. SST::Hg::GlobalVariable::glblCtx, sst_hg_global_stacksize) keep
+  # resolving to libhg's single-instance definitions instead of getting a local
+  # copy in the DSO (which would make the per-rank globals segment diverge from
+  # the one libhg uses to allocate it, causing OOB writes).
+  gcc -shared \
+    -Wl,-Bsymbolic-functions \
+    -Wl,-rpath,"$PREFIX/lib" \
+    -Wl,-rpath,"$HG_ELEMS_LIB" \
+    -Wl,-rpath,"$OFI_EXT_LIB" \
+    -Wl,--whole-archive "$LIBMPI_NOPMI" -Wl,--no-whole-archive \
+    -L "$OFI_EXT_LIB" -lpmi -lfabric \
+    -L "$HG_ELEMS_LIB" -Wl,--no-as-needed -lhg -Wl,--as-needed \
+    "$SCRIPT_DIR/mv2_ld_glibc_stub.o" \
+    "$SCRIPT_DIR/mv2_mpi_wrappers.o" \
+    register_app_gen.o test_mv2_sendrecv.o -o libtest_mv2_sendrecv.so
+  rm -f "$SCRIPT_DIR/mv2_ld_glibc_stub.o" "$SCRIPT_DIR/mv2_mpi_wrappers.o"
+}
+
 # Step 1: Compile with hgcc (injects skeleton.h, pthread replacement headers).
 # Step 2: Compile MPI wrappers (macOS only — provides strong global MPI_*
 #         symbols to override the local weak aliases from #pragma weak).
@@ -104,54 +157,9 @@ while IFS= read -r _mem; do
 done < <(ar t "$LIBMPI_NOPMI" 2>/dev/null | grep -i 'simple_pmi' || true)
 
 if [[ "$(uname -s)" == Darwin ]]; then
-  gcc -c mv2_mpi_wrappers.c -I "$MV2_INC"
-  gcc -bundle -undefined dynamic_lookup \
-    -Wl,-rpath,"$PREFIX/lib" \
-    -Wl,-rpath,"$OFI_EXT_LIB" \
-    -Wl,-force_load,"$LIBMPI_NOPMI" \
-    -L "$OFI_EXT_LIB" -lpmi -lfabric \
-    mv2_mpi_wrappers.o register_app_gen.o test_mv2_sendrecv.o \
-    -o libtest_mv2_sendrecv.so
-  rm -f mv2_mpi_wrappers.o
+  _build_bundle_darwin
 else
-  # Link libhg so userSkeletonMainInitFxn resolves and the loader can find Mercury
-  # (register_app_gen calls into libhg.so). Without this, dlopen(libtest_...) can fail
-  # silently during SST requireLibrary and no main is registered ("no main_fxns_").
-  _stub_cflags=(-fPIC)
-  # Some hosts define __linux__ but not __GLIBC__ when preprocessing the stub; keep body.
-  if [[ "$(uname -s)" == Linux ]] && command -v gcc >/dev/null 2>&1; then
-    _dM=$(echo | gcc -dM -E - 2>/dev/null || true)
-    if echo "$_dM" | grep -q '#define __linux__' && ! echo "$_dM" | grep -q '#define __GLIBC__'; then
-      _stub_cflags+=(-D__GLIBC__=1)
-    fi
-  fi
-  gcc "${_stub_cflags[@]}" -c "$SCRIPT_DIR/mv2_ld_glibc_stub.c" -o "$SCRIPT_DIR/mv2_ld_glibc_stub.o"
-  # mv2_mpi_wrappers.c provides hgcc_gethostname / hgcc_gethostid / hgcc_usleep
-  # stubs that hgcc-rewritten code in libmpi.a references via replacements/unistd.h.
-  # (The MPI_* -> PMPI_* wrappers in the same file are no-ops on Linux once the
-  # MVAPICH2 weak-alias #pragmas take effect, but they are harmless.)
-  gcc -fPIC -c mv2_mpi_wrappers.c -I "$MV2_INC" -o "$SCRIPT_DIR/mv2_mpi_wrappers.o"
-  # -Bsymbolic-functions: prefer our own (MVAPICH2) MPI_* function symbols over
-  # any MPI_* the host sst process already loaded (e.g. Open MPI pulled in as an
-  # MCA component). Without this the DSO's MPI_Init call resolves to Open MPI's
-  # MPI_Init, which is already initialized and errors "MPI_INIT called more than
-  # once". Use the -functions variant rather than plain -Bsymbolic so extern DATA
-  # symbols (e.g. SST::Hg::GlobalVariable::glblCtx, sst_hg_global_stacksize) keep
-  # resolving to libhg's single-instance definitions instead of getting a local
-  # copy in the DSO (which would make the per-rank globals segment diverge from
-  # the one libhg uses to allocate it, causing OOB writes).
-  gcc -shared \
-    -Wl,-Bsymbolic-functions \
-    -Wl,-rpath,"$PREFIX/lib" \
-    -Wl,-rpath,"$HG_ELEMS_LIB" \
-    -Wl,-rpath,"$OFI_EXT_LIB" \
-    -Wl,--whole-archive "$LIBMPI_NOPMI" -Wl,--no-whole-archive \
-    -L "$OFI_EXT_LIB" -lpmi -lfabric \
-    -L "$HG_ELEMS_LIB" -Wl,--no-as-needed -lhg -Wl,--as-needed \
-    "$SCRIPT_DIR/mv2_ld_glibc_stub.o" \
-    "$SCRIPT_DIR/mv2_mpi_wrappers.o" \
-    register_app_gen.o test_mv2_sendrecv.o -o libtest_mv2_sendrecv.so
-  rm -f "$SCRIPT_DIR/mv2_ld_glibc_stub.o" "$SCRIPT_DIR/mv2_mpi_wrappers.o"
+  _build_bundle_linux
 fi
 rm -f "$LIBMPI_NOPMI"
 rm -f test_mv2_sendrecv.o register_app_gen.o register_app_gen.cpp

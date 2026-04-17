@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # SST driver: single Mercury node (Merlin), MVAPICH2 smoke test.
 # Validates the full loading chain: MVAPICH2 -> PMI -> OFI -> Iris -> SUMI -> NIC.

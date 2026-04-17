@@ -128,6 +128,7 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
       AC_SUBST([USE_LIBCXX_FOR_AST], [False])
       AC_MSG_CHECKING([whether Clang needs gnu++ dialect for libstdc++ AST parse])
       astprobe=conftest_ast$$.cxx
+      trap 'rm -f "$astprobe"' 0 1 2 13 15
       echo '#include <map>' > "$astprobe"
       if $clang/bin/clang++ -fsyntax-only -stdlib=libstdc++ -std=c++11 "$astprobe" >/dev/null 2>&1; then
         AC_SUBST([AST_GNUXX_REMAP], [False])
