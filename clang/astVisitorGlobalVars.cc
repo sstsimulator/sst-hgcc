@@ -124,6 +124,13 @@ SkeletonASTVisitor::setupGlobalReplacement(VarDecl *D, const std::string& namePr
                                            bool useAccessor, bool isFxnStatic, bool needFullNs)
 {
   bool threadLocal = isThreadLocal(D);
+  if (threadLocal) {
+    // The rewritten variable becomes a plain global backing store; per-thread
+    // semantics (thread_local / __thread) are not preserved. Surface this so
+    // users know their TLS variable is now shared across simulated threads.
+    warn(D, "thread_local variable rewritten as a global; per-thread "
+            "semantics are lost");
+  }
 
   std::string uniqueName = namePrefix + D->getNameAsString();
 

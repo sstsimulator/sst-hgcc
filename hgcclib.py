@@ -400,26 +400,6 @@ def run(typ, extraLibs=""):
 
     ctx.tempReplacementsDir = tempReplacementsDir
 
-    try:
-      import json as _json
-      _dbg_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".debug")
-      os.makedirs(_dbg_dir, exist_ok=True)
-      _logpath = os.path.join(_dbg_dir, "hgcc-replacements.log")
-      _rel_files = []
-      for _root, _dirs, _walk_files in os.walk(tempReplacementsDir):
-        for _fname in _walk_files:
-          _rel_files.append(os.path.relpath(os.path.join(_root, _fname), tempReplacementsDir))
-      _rel_files.sort()
-      with open(_logpath, "a", encoding="utf-8") as _df:
-        _df.write(_json.dumps({
-          "replacements": ctx.requestedReplacements,
-          "replacementsPath": replacementsPath,
-          "tempReplacementsDir": tempReplacementsDir,
-          "files": _rel_files,
-        }) + "\n")
-    except Exception:
-      pass
-
     args.I.insert(0, tempReplacementsDir)
     args.I.insert(1, os.path.join(prefix, "include"))
 
@@ -590,6 +570,14 @@ def run(typ, extraLibs=""):
   elif typ.lower() == "c":
     ctx.compiler = ctx.cc
     ctx.ld = ctx.cxx
+    # If the Clang AST driver (ssthg_clang) was not built but a C source is being
+    # compiled in simulate mode, global-variable src-to-src rewriting will be
+    # skipped. Warn so users can see why skeletonization did not happen, but do
+    # not abort — plain C -c still works and conftest / host tools depend on it.
+    if ctx.simulateMode() and not ctx.hasClang and not getattr(ctx, "is_conftest", False):
+      sys.stderr.write(
+          "WARNING: hgcc: compiling C source without Clang AST driver; "
+          "global-variable rewriting is disabled for this TU\n")
     if args.std:
       ctx.cFlags.append("-std=%s" % args.std)
     elif sstCArgs.std:

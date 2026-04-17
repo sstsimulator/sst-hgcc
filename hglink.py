@@ -84,6 +84,11 @@ def addLink(ctx, ldTarget, args, cmds, objects, toExe=False):
 
   if is_conftest:
     # Conftest: minimal link; drop -flat_namespace (dyld/SST issues on macOS).
+    # Note: _conftest_strip_sst_pmi_link only scrubs -lpmi / sst-elements-library/ext
+    # from args.l / args.L / ctx.compilerFlags. It does NOT strip ctx.ldFlags because
+    # the sstLdFlags population loop in hgcclib skips conftest, so ctx.ldFlags is
+    # empty here. If that ever changes (e.g. sstLdFlags is added unconditionally),
+    # extend _conftest_strip_sst_pmi_link to scrub wlFlags / ctx.ldFlags too.
     bad_flags = {"-Wl,-flat_namespace", "-flat_namespace"}
     linkCmdArr = [ctx.ld]
     for f in wlFlags:

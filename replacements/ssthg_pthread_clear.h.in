@@ -105,11 +105,4 @@
 #undef pthread_cleanup_push
 #undef pthread_cleanup_pop
 
-#elif defined(SSTMAC_PTHREAD_MACRO_H)
-
-#include <sstmac/libraries/pthread/sstmac_pthread_clear_macros.h>
-#define PTHREAD_MUTEX_INITIALIZER @PTHREAD_MACRO_DEF_MUTEX_INITIALIZER@
-#define PTHREAD_COND_INITIALIZER @PTHREAD_MACRO_DEF_COND_INITIALIZER@
-#define PTHREAD_ONCE_INIT @PTHREAD_MACRO_DEF_ONCE_INITIALIZER@
-
 #endif

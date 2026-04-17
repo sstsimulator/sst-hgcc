@@ -155,7 +155,12 @@ def host_compile_argv_for_ast(ctx, args):
 
 
 def compile_commands_argv_for_source(source_path):
-  """Argv from HGCC_COMPILE_COMMANDS JSON for this TU, or None."""
+  """Argv from HGCC_COMPILE_COMMANDS JSON for this TU, or None.
+
+  TODO: os.path.abspath is used on both sides of the comparison; consider
+  switching to os.path.realpath so symlinked build trees or DB paths that
+  differ only by a symlinked directory component still match.
+  """
   raw = os.environ.get("HGCC_COMPILE_COMMANDS")
   if not raw:
     return None
@@ -214,6 +219,13 @@ def _pp_compiler_flags_match_ast_std(ctx, args, ast_base_argv, sstStdFlag):
   is expanded for GCC (__integer_pack); Clang then cannot parse the .ii file.
   If the final driver is g++ at c++14, libstdc++ may still use Clang builtins
   (__make_integer_seq) that g++ does not provide; use clang++ -c with libstdc++.
+
+  Assumption: ctx.compilerFlags does not carry gcc-only diagnostic flags that
+  Clang rejects as errors. On most hosts this holds because the flags come from
+  SST_CXXFLAGS / STD_CXXFLAGS (both vetted against clang at configure time).
+  If a user prepends gcc-specific warning flags (e.g. -Wno-maybe-uninitialized)
+  via CXXFLAGS, they will reach clang++ -c on the use_clangxx_host path and
+  produce unknown-warning-option diagnostics.
   """
   out = list(ctx.compilerFlags)
   if ctx.typ != "c++":
@@ -252,10 +264,9 @@ def apply_ast_libstdcxx_cpp14_floor(argv, enabled):
 
 def _clang_cxx_for_preprocess():
   """Path to clang++ under CLANG_INSTALL_DIR, or None if missing."""
-  import os
-  try:
-    from hgccvars import clangDir
-  except ImportError:
+  import hgccvars as _hv
+  clangDir = getattr(_hv, "clangDir", None)
+  if not clangDir:
     return None
   cand = os.path.join(clangDir, "bin", "clang++")
   return cand if os.path.isfile(cand) else None
@@ -263,9 +274,9 @@ def _clang_cxx_for_preprocess():
 
 def _clang_cc_for_preprocess():
   """Path to clang (not clang++) under CLANG_INSTALL_DIR, or None if missing."""
-  try:
-    from hgccvars import clangDir
-  except ImportError:
+  import hgccvars as _hv
+  clangDir = getattr(_hv, "clangDir", None)
+  if not clangDir:
     return None
   cand = os.path.join(clangDir, "bin", "clang")
   return cand if os.path.isfile(cand) else None
@@ -409,7 +420,6 @@ def addEmitLlvm(ctx, sourceFile, outputFile, args, cmds):
 def addLlvmOptPass(ctx, llFile, llvmPass, args, cmds):
   from hgccvars import clangDir
   from hgccvars import prefix
-  import os
   optTool = os.path.join(clangDir, "bin", "opt")
   llvmLib = os.path.join(prefix, "lib", "lib%s.so" % llvmPass)
   cmdArr = [
@@ -450,19 +460,27 @@ def addModeDefines(ctx, args):
   if not ctx.simulateMode():
     ctx.defines.append("SST_HG_NO_REPLACEMENTS")
 
-def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
-  import hgccvars as _hv
-  from hgccvars import prefix
-  from hgccvars import defaultIncludePaths, includeDir, includeDirElements
-  from hgccutils import cleanFlag, swapSuffix, addPrefixAndRebase, addPrefix
-  from hgccvars import clangCppFlagsStr, clangLdFlagsStr
-  from hgccvars import clangLibtoolingCxxFlagsStr, clangLibtoolingCFlagsStr
-  from hgccvars import haveFloat128
-  from hgccvars import sstStdFlag
+class _Src2SrcPlan:
+  """Shared state for addSrc2SrcCompile: AST/host flags, clang bin choices."""
+  __slots__ = (
+      "use_libcxx", "ast_gnuxx_remap", "cxx_resource",
+      "base_argv", "host_cxx_flags_for_obj", "ast_resource_tokens",
+      "clang_cc_linux", "clang_cxx_bin", "use_clangxx_host",
+  )
 
-  use_libcxx = _hgcc_bool_attr(_hv, "useLibcxxForAst", False)
-  ast_gnuxx_remap = _hgcc_bool_attr(_hv, "astGnuxxRemap", False)
-  cxx_resource = getattr(_hv, "clangLibtoolingCxxResourceStr", "").strip()
+
+def _build_src2src_plan(ctx, sourceFile, args, _hv,
+                        clangLibtoolingCxxFlagsStr,
+                        clangLibtoolingCFlagsStr,
+                        sstStdFlag):
+  """Resolve AST argv, -std alignment, and which clang binaries to use.
+
+  Returns a _Src2SrcPlan; does not modify ctx or touch cmds.
+  """
+  p = _Src2SrcPlan()
+  p.use_libcxx = _hgcc_bool_attr(_hv, "useLibcxxForAst", False)
+  p.ast_gnuxx_remap = _hgcc_bool_attr(_hv, "astGnuxxRemap", False)
+  p.cxx_resource = getattr(_hv, "clangLibtoolingCxxResourceStr", "").strip()
 
   # Build AST argv first so g++ -E uses the same -std= as ssthg_clang (libstdc++).
   base_argv = compile_commands_argv_for_source(sourceFile)
@@ -474,112 +492,211 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
     else:
       base_argv = [sstStdFlag] + base_argv
   base_argv = apply_ast_libstdcxx_cpp14_floor(
-      base_argv, (not use_libcxx) and ctx.typ == "c++")
-  base_argv = apply_ast_gnuxx_remap(base_argv, ast_gnuxx_remap)
-  host_cxx_flags_for_obj = _pp_compiler_flags_match_ast_std(
+      base_argv, (not p.use_libcxx) and ctx.typ == "c++")
+  base_argv = apply_ast_gnuxx_remap(base_argv, p.ast_gnuxx_remap)
+  p.base_argv = base_argv
+
+  p.host_cxx_flags_for_obj = _pp_compiler_flags_match_ast_std(
       ctx, args, base_argv, sstStdFlag)
-  # Resource -I flags passed to ssthg_clang (same list order as below).
+
+  # Resource -I flags passed to ssthg_clang (same list order as host cmd below).
   if ctx.typ == "c++":
-    if use_libcxx:
-      ast_resource_tokens = [
+    if p.use_libcxx:
+      p.ast_resource_tokens = [
           x for x in clangLibtoolingCxxFlagsStr.split() if x]
     else:
-      res_flags = cxx_resource if cxx_resource else clangLibtoolingCFlagsStr
-      ast_resource_tokens = [x for x in res_flags.split() if x]
+      res_flags = p.cxx_resource if p.cxx_resource else clangLibtoolingCFlagsStr
+      p.ast_resource_tokens = [x for x in res_flags.split() if x]
   else:
-    ast_resource_tokens = [x for x in clangLibtoolingCFlagsStr.split() if x]
+    p.ast_resource_tokens = [x for x in clangLibtoolingCFlagsStr.split() if x]
+
   # g++ does not implement Clang's __make_integer_seq; libstdc++ can still pick
   # that branch when __has_builtin matches. Use clang++ -c (with libstdc++) to
   # match clang++ -E and ssthg_clang. Resolve clang++ even when hgccvars.clangDir
   # is wrong (e.g. hg++ already uses clang++; or -I.../lib/clang/N/include).
-  pre_tokens = list(base_argv) + ast_resource_tokens
-  clang_cc_linux = None
+  pre_tokens = list(base_argv) + p.ast_resource_tokens
+  p.clang_cc_linux = None
   if ctx.typ != "c++" and sys.platform.startswith("linux"):
-    clang_cc_linux = _clang_cc_resolve_for_linux_preprocess(ctx, pre_tokens)
-  clang_cxx_bin = _clang_cxx_resolve_for_libstdc_host(ctx, pre_tokens)
-  use_clangxx_host = (
-      (not use_libcxx) and ctx.typ == "c++" and bool(clang_cxx_bin))
+    p.clang_cc_linux = _clang_cc_resolve_for_linux_preprocess(ctx, pre_tokens)
+  p.clang_cxx_bin = _clang_cxx_resolve_for_libstdc_host(ctx, pre_tokens)
+  p.use_clangxx_host = (
+      (not p.use_libcxx) and ctx.typ == "c++" and bool(p.clang_cxx_bin))
+  return p
 
-  #First we must pre-process the file to get it read for source-to-source
-  objBaseFolder, objName = os.path.split(outputFile)
-  ppTmpFile = addPrefixAndRebase("pp.", sourceFile, objBaseFolder)
-  if not ctx.src2srcDebug:
-    addPreprocess(
-        ctx,
-        sourceFile,
-        ppTmpFile,
-        args,
-        cmds,
-        compiler_flags=host_cxx_flags_for_obj,
-        use_clang_cpp_for_e=(not use_libcxx) and ctx.typ == "c++",
-        clang_exe_for_preprocess=clang_cxx_bin,
-        clang_cc_for_linux_preprocess=clang_cc_linux,
-    )
 
+def _normalize_default_include_paths(defaultIncludePaths):
+  """Abspath-normalize each ':'-separated entry."""
   rawPaths = defaultIncludePaths.split(":")
-  cleanPaths = []
-  for path in rawPaths:
-    cleanPaths.append(os.path.abspath(path))
-  defaultIncludePaths = ":".join(cleanPaths)
-  #defaultIncludePaths += ":" + cleanFlag(includeDir)
+  return ":".join(os.path.abspath(p) for p in rawPaths)
 
-  # System include roots for isInSystemHeader(). Use SSTHG_SYSTEM_INCLUDES so
-  # the subprocess does not need --system-includes (llvm::cl + CommonOptionsParser
-  # rejects that flag on some Apple/LLVM-linked ssthg_clang builds).
-  os.environ["SSTHG_SYSTEM_INCLUDES"] = defaultIncludePaths
 
+def _build_ssthg_clang_cmd(ctx, plan, prefix, ppTmpFile, haveFloat128):
+  """Return argv for the ssthg_clang invocation that emits sst.pp.* / sstGlobals.*."""
   clangDeglobal = os.path.join(prefix, "bin", "ssthg_clang")
-  clangCmdArr = [clangDeglobal]
-  clangCmdArr.append(ppTmpFile)
-  clangCmdArr.extend(ctx.clangArgs)
-
-  clangCmdArr.append("--")
+  cmd = [clangDeglobal, ppTmpFile]
+  cmd.extend(ctx.clangArgs)
+  cmd.append("--")
   # Linux C: pp.* should come from clang -fgnuc-version=10 -E (see addPreprocess). Keep
   # the same for any remaining parse so libc feature tests stay consistent.
   if ctx.typ != "c++" and sys.platform.startswith("linux"):
-    clangCmdArr.append("-fgnuc-version=10")
+    cmd.append("-fgnuc-version=10")
 
-  if hasattr(ctx, "requestedReplacements") and ctx.requestedReplacements:
-    if hasattr(ctx, "tempReplacementsDir"):
-      clangCmdArr.append("-I")
-      clangCmdArr.append(ctx.tempReplacementsDir)
-      clangCmdArr.append("-I")
-      clangCmdArr.append(os.path.join(prefix, "include"))
+  if getattr(ctx, "requestedReplacements", None) and \
+      hasattr(ctx, "tempReplacementsDir"):
+    cmd.append("-I")
+    cmd.append(ctx.tempReplacementsDir)
+    cmd.append("-I")
+    cmd.append(os.path.join(prefix, "include"))
+    cmd.append("-I")
+    cmd.append(os.path.join(prefix, "include", "iris"))
 
+  base_argv = plan.base_argv
   if not ctx.src2srcDebug:
     base_argv = _strip_include_directives(base_argv)
-  clangCmdArr.extend(base_argv)
+  cmd.extend(base_argv)
 
   if ctx.typ == "c++":
-    if use_libcxx:
-      clangCmdArr.append("-stdlib=libc++")
-    else:
-      clangCmdArr.append("-stdlib=libstdc++")
+    cmd.append("-stdlib=libc++" if plan.use_libcxx else "-stdlib=libstdc++")
 
   need_float_stubs = (not haveFloat128 and
                       not (ctx.typ == "c++" and sys.platform.startswith("linux")))
   if need_float_stubs:
-    clangCmdArr.append("-D__float128=clangFloat128Fix")
+    cmd.append("-D__float128=clangFloat128Fix")
     if ctx.typ != "c++":
-      clangCmdArr.append("-D_Float32=float")
-      clangCmdArr.append("-D_Float64=double")
-      clangCmdArr.append("-D_Float32x=double")
-      clangCmdArr.append("-D_Float64x=long double")
-      clangCmdArr.append("-D_Float128=long double")
-  clangCmdArr.append("-D__builtin_clzg(...)=0")
-  clangCmdArr.append("-D__builtin_ctzg(...)=0")
+      cmd.append("-D_Float32=float")
+      cmd.append("-D_Float64=double")
+      cmd.append("-D_Float32x=double")
+      cmd.append("-D_Float64x=long double")
+      cmd.append("-D_Float128=long double")
+  # TODO(llvm18): __builtin_clzg / __builtin_ctzg were added in LLVM 18. Once
+  # ssthg_clang is built against LLVM 18+, gate these -D stubs behind a
+  # Clang-version probe (or a configure check) so real uses of the builtins
+  # are not silently replaced with the literal 0.
+  cmd.append("-D__builtin_clzg(...)=0")
+  cmd.append("-D__builtin_ctzg(...)=0")
 
-  clangCmdArr.extend(ast_resource_tokens)
+  cmd.extend(plan.ast_resource_tokens)
+  return cmd
 
-  srcRepl = addPrefixAndRebase("sst.pp.",sourceFile,objBaseFolder)
-  cxxInitSrcFile = addPrefixAndRebase("sstGlobals.pp.",sourceFile,objBaseFolder) + ".cpp"
+
+def _build_host_obj_cmd(ctx, args, plan, srcRepl, tmpTarget):
+  """Return argv to compile the rewritten sst.pp.* back to an object."""
+  if plan.use_clangxx_host:
+    cmd = [plan.clang_cxx_bin, "-stdlib=libstdc++"]
+  else:
+    cmd = [ctx.compiler]
+  cmd.extend(map(lambda x: "-D%s" % x, ctx.defines))
+  cmd.extend(map(lambda x: "-D%s" % x, getattr(args, "D", [])))
+  cmd.extend(map(lambda x: "-I%s" % x, args.I))
+  cmd.extend(ctx.cppFlags)
+  cmd.extend(plan.host_cxx_flags_for_obj)
+  if not plan.use_clangxx_host:
+    cmd.append("--no-integrated-cpp")
+  cmd.append("-o")
+  cmd.append(tmpTarget)
+  cmd.append("-c")
+  cmd.append(srcRepl)
+  if args.O:
+    cmd.append("-O%s" % args.O)
+  if args.g:
+    cmd.append("-g")
+  return cmd
+
+
+def _build_cxx_init_cmd(ctx, args, plan, prefix, cxxInitSrcFile, cxxInitObjFile):
+  """Return argv to compile sstGlobals.pp.*.cpp to sstGlobals.<obj>.o."""
+  if plan.use_clangxx_host:
+    cmd = [
+        plan.clang_cxx_bin,
+        "-stdlib=libstdc++",
+        "-o",
+        cxxInitObjFile,
+        "-I%s/include" % prefix,
+        "-I%s/include/iris" % prefix,
+        "-c",
+        cxxInitSrcFile,
+    ]
+  else:
+    cmd = [
+        ctx.cxx,
+        "-o",
+        cxxInitObjFile,
+        "-I%s/include" % prefix,
+        "-I%s/include/iris" % prefix,
+        "-c",
+        cxxInitSrcFile,
+    ]
+  cmd.extend(ctx.cxxFlags)
+  cmd.extend(ctx.cppFlags)
+  if ctx.typ == "c++":
+    std_ast = next(
+        (a for a in plan.host_cxx_flags_for_obj if a.startswith("-std=")), None)
+    if std_ast:
+      cmd = [a for a in cmd if not a.startswith("-std=")]
+      cmd.append(std_ast)
+  if args.O:
+    cmd.append("-O%s" % args.O)
+  if args.g:
+    cmd.append("-g")
+  return cmd
+
+
+def _build_merge_cmd(tmpTarget, cxxInitObjFile, outputFile):
+  """Return `ld -r` argv merging rewritten + sstGlobals objects into outputFile."""
+  import platform
+  cmd = ["ld", "-r"]
+  if platform.system() != "Darwin":
+    cmd.append("--unique")
+  cmd.append(tmpTarget)
+  cmd.append(cxxInitObjFile)
+  cmd.append("-o")
+  cmd.append(outputFile)
+  return cmd
+
+
+def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
+  import hgccvars as _hv
+  from hgccvars import prefix
+  from hgccvars import defaultIncludePaths
+  from hgccutils import swapSuffix, addPrefixAndRebase, addPrefix
+  from hgccvars import clangLibtoolingCxxFlagsStr, clangLibtoolingCFlagsStr
+  from hgccvars import haveFloat128
+  from hgccvars import sstStdFlag
+
+  plan = _build_src2src_plan(
+      ctx, sourceFile, args, _hv,
+      clangLibtoolingCxxFlagsStr, clangLibtoolingCFlagsStr, sstStdFlag)
+
+  # First we must pre-process the file to get it ready for source-to-source.
+  objBaseFolder, _objName = os.path.split(outputFile)
+  ppTmpFile = addPrefixAndRebase("pp.", sourceFile, objBaseFolder)
   if not ctx.src2srcDebug:
-    cmds.append([None,clangCmdArr,[ppTmpFile,srcRepl,cxxInitSrcFile]]) #None -> don't pipe output anywhere
+    addPreprocess(
+        ctx, sourceFile, ppTmpFile, args, cmds,
+        compiler_flags=plan.host_cxx_flags_for_obj,
+        use_clang_cpp_for_e=(not plan.use_libcxx) and ctx.typ == "c++",
+        clang_exe_for_preprocess=plan.clang_cxx_bin,
+        clang_cc_for_linux_preprocess=plan.clang_cc_linux,
+    )
+
+  # System include roots for isInSystemHeader(). Use SSTHG_SYSTEM_INCLUDES so
+  # the subprocess does not need --system-includes (llvm::cl + CommonOptionsParser
+  # rejects that flag on some Apple/LLVM-linked ssthg_clang builds).
+  os.environ["SSTHG_SYSTEM_INCLUDES"] = \
+      _normalize_default_include_paths(defaultIncludePaths)
+
+  srcRepl = addPrefixAndRebase("sst.pp.", sourceFile, objBaseFolder)
+  cxxInitSrcFile = \
+      addPrefixAndRebase("sstGlobals.pp.", sourceFile, objBaseFolder) + ".cpp"
+
+  clangCmdArr = _build_ssthg_clang_cmd(
+      ctx, plan, prefix, ppTmpFile, haveFloat128)
+  if not ctx.src2srcDebug:
+    # None -> don't pipe output anywhere; clangCmdArr emits sst.pp.* + sstGlobals.*
+    cmds.append([None, clangCmdArr, [ppTmpFile, srcRepl, cxxInitSrcFile]])
 
   tmpTarget = addPrefix("tmp.", outputFile)
-  llvmPasses = []
-  if args.skeletonize:
-    llvmPasses = args.skeletonize.split(",")
+  llvmPasses = args.skeletonize.split(",") if args.skeletonize else []
 
   if llvmPasses:
     llvmFile = swapSuffix("ll", tmpTarget)
@@ -587,77 +704,17 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
     for llvmPass in llvmPasses:
       addLlvmOptPass(ctx, llvmFile, llvmPass, args, cmds)
     addLlvmCompile(ctx, llvmFile, tmpTarget, args, cmds)
-    
   else:
-    if use_clangxx_host:
-      cmdArr = [clang_cxx_bin, "-stdlib=libstdc++"]
-    else:
-      cmdArr = [ctx.compiler]
-    cmdArr.extend(map(lambda x: "-D%s" % x, ctx.defines))
-    cmdArr.extend(map(lambda x: "-D%s" % x, getattr(args, "D", [])))
-    cmdArr.extend(map(lambda x: "-I%s" % x, args.I))
-    cmdArr.extend(ctx.cppFlags)
-    cmdArr.extend(host_cxx_flags_for_obj)
-    if not use_clangxx_host:
-      cmdArr.append("--no-integrated-cpp")
-    cmdArr.append("-o")
-    cmdArr.append(tmpTarget)
-    cmdArr.append("-c")
-    cmdArr.append(srcRepl)
-    if args.O:
-      cmdArr.append("-O%s" % args.O)
-    if args.g:
-      cmdArr.append("-g")
-    cmds.append([None,cmdArr,[tmpTarget]])
+    hostCmd = _build_host_obj_cmd(ctx, args, plan, srcRepl, tmpTarget)
+    cmds.append([None, hostCmd, [tmpTarget]])
 
   cxxInitObjFile = addPrefix("sstGlobals.", outputFile)
-  if use_clangxx_host:
-    cxxInitCmdArr = [
-        clang_cxx_bin,
-        "-stdlib=libstdc++",
-        "-o",
-        cxxInitObjFile,
-        "-I%s/include" % prefix,
-        "-c",
-        cxxInitSrcFile,
-    ]
-  else:
-    cxxInitCmdArr = [
-        ctx.cxx,
-        "-o",
-        cxxInitObjFile,
-        "-I%s/include" % prefix,
-        "-c",
-        cxxInitSrcFile,
-    ]
-  cxxInitCmdArr.extend(ctx.cxxFlags)
-  cxxInitCmdArr.extend(ctx.cppFlags)
-  if ctx.typ == "c++":
-    std_ast = next(
-        (a for a in host_cxx_flags_for_obj if a.startswith("-std=")), None)
-    if std_ast:
-      cxxInitCmdArr = [a for a in cxxInitCmdArr if not a.startswith("-std=")]
-      cxxInitCmdArr.append(std_ast)
-  if args.O:
-    cxxInitCmdArr.append("-O%s" % args.O)
-  if args.g:
-    cxxInitCmdArr.append("-g")
-  cmds.append([None,cxxInitCmdArr,[cxxInitObjFile]])
+  cxxInitCmdArr = _build_cxx_init_cmd(
+      ctx, args, plan, prefix, cxxInitSrcFile, cxxInitObjFile)
+  cmds.append([None, cxxInitCmdArr, [cxxInitObjFile]])
 
-  mergeCmdArr = [
-    "ld", "-r"
-  ]
-
-  import platform
-  if not platform.system() == "Darwin":
-    mergeCmdArr.append("--unique")
-
-  mergeCmdArr.append(tmpTarget)
-  mergeCmdArr.append(cxxInitObjFile)
-  mergeCmdArr.append("-o")
-  mergeCmdArr.append(outputFile)
-
-  cmds.append([None,mergeCmdArr,[]])
+  mergeCmdArr = _build_merge_cmd(tmpTarget, cxxInitObjFile, outputFile)
+  cmds.append([None, mergeCmdArr, []])
 
 def addComponentCompile(ctx, sourceFile, outputFile, args, cmds):
   buildArgs = [ctx.compiler] 

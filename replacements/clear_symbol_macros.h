@@ -64,7 +64,7 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifdef gethostid
 #undef gethostid
-#define hgcc_must_return_getid
+#define hgcc_must_return_gethostid
 #endif
 
 #ifdef mutex
@@ -84,6 +84,6 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifdef putenv
 #undef putenv
-#define hgcc_must_return_puttenv
+#define hgcc_must_return_putenv
 #endif
 
