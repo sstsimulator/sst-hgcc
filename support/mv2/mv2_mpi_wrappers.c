@@ -52,3 +52,22 @@ int MPI_Win_create(void *b, MPI_Aint s, int d,
 int MPI_Win_free(MPI_Win *w)                                    { return PMPI_Win_free(w); }
 int MPI_Win_lock(int lt, int r, int a, MPI_Win w)              { return PMPI_Win_lock(lt, r, a, w); }
 int MPI_Win_unlock(int r, MPI_Win w)                            { return PMPI_Win_unlock(r, w); }
+
+int MPI_Bcast(void *b, int c, MPI_Datatype d, int r, MPI_Comm cm)
+                                                                { return PMPI_Bcast(b, c, d, r, cm); }
+int MPI_Reduce(const void *s, void *r, int c, MPI_Datatype d,
+               MPI_Op o, int root, MPI_Comm cm)                 { return PMPI_Reduce(s, r, c, d, o, root, cm); }
+int MPI_Gather(const void *sb, int sc, MPI_Datatype st,
+               void *rb, int rc, MPI_Datatype rt,
+               int root, MPI_Comm cm)                           { return PMPI_Gather(sb, sc, st, rb, rc, rt, root, cm); }
+int MPI_Allgather(const void *sb, int sc, MPI_Datatype st,
+                  void *rb, int rc, MPI_Datatype rt,
+                  MPI_Comm cm)                                  { return PMPI_Allgather(sb, sc, st, rb, rc, rt, cm); }
+int MPI_Scatter(const void *sb, int sc, MPI_Datatype st,
+                void *rb, int rc, MPI_Datatype rt,
+                int root, MPI_Comm cm)                          { return PMPI_Scatter(sb, sc, st, rb, rc, rt, root, cm); }
+int MPI_Alltoall(const void *sb, int sc, MPI_Datatype st,
+                 void *rb, int rc, MPI_Datatype rt,
+                 MPI_Comm cm)                                   { return PMPI_Alltoall(sb, sc, st, rb, rc, rt, cm); }
+int MPI_Reduce_scatter(const void *sb, void *rb, const int *rc,
+                       MPI_Datatype d, MPI_Op o, MPI_Comm cm)   { return PMPI_Reduce_scatter(sb, rb, rc, d, o, cm); }
