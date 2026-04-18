@@ -1,27 +1,5 @@
 #!/usr/bin/env bash
-# Build MVAPICH2 smoke test with hg++ and run under SST.
-# Validates the full loading chain: MVAPICH2 (static) -> PMI (SST) -> OFI
-# netmod -> Iris libfabric (SUMI provider) -> Mercury NIC -> Merlin.
-#
-# Two simulated MPI ranks in one SST process: hgcc relocates MVAPICH2 globals;
-# PMI reports per-rank identity via the libfabric transport.
-#
-# Usage:
-#   ./run_test_mv2_sendrecv.sh [PREFIX]
-#   PREFIX defaults to $SST_HG_PREFIX or ../../../install from this directory.
-#
-# Optional: SST_HG_MV2_PRELOAD=1 enables Python ctypes preload of libhg + libsumi +
-# libtest_mv2_sendrecv.so before import sst (see run_test_mv2_sendrecv.py). Default
-# is SST-only dlopen once Mercury loader dependency order is fixed.
-#
-# SST is often linked against libpython; if you see "error while loading shared
-# libraries: libpython3.x.so", prepend that Python's lib directory to
-# LD_LIBRARY_PATH (e.g. the lib/ next to the interpreter used to build sst-core).
-#
-# Follow-on (Mercury / SST-DL, sst-elements): prefer loader order so Iris libsumi
-# is mapped before libfabric and app .so static inits run before UserAppCxxFullMain
-# lookup—then run_test_mv2_sendrecv.py can rely on SST-only dlopen without ctypes
-# preload (see SST_HG_MV2_PRELOAD in that script). See comment in app.cc.
+
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -43,7 +21,7 @@ if ! command -v hgcc >/dev/null 2>&1; then
 fi
 
 MV2_LIB="$PREFIX/mvapich2/lib"
-MV2_INC="$PREFIX/mvapich2/include"
+MV2_INC="$PREFIX/mvapich2/include"  
 HG_ELEMS_LIB="$PREFIX/lib/sst-elements-library"
 OFI_EXT_LIB="$HG_ELEMS_LIB/ext"
 
@@ -60,109 +38,10 @@ if ! ls "$OFI_EXT_LIB"/libpmi.* 1>/dev/null 2>&1; then
   exit 1
 fi
 
-_build_bundle_darwin() {
-  gcc -c mv2_mpi_wrappers.c -I "$MV2_INC"
-  gcc -bundle -undefined dynamic_lookup \
-    -Wl,-rpath,"$PREFIX/lib" \
-    -Wl,-rpath,"$OFI_EXT_LIB" \
-    -Wl,-force_load,"$LIBMPI_NOPMI" \
-    -L "$OFI_EXT_LIB" -lpmi -lfabric \
-    mv2_mpi_wrappers.o register_app_gen.o test_mv2_sendrecv.o \
-    -o libtest_mv2_sendrecv.so
-  rm -f mv2_mpi_wrappers.o
-}
-
-_build_bundle_linux() {
-  # Link libhg so userSkeletonMainInitFxn resolves and the loader can find Mercury
-  # (register_app_gen calls into libhg.so). Without this, dlopen(libtest_...) can fail
-  # silently during SST requireLibrary and no main is registered ("no main_fxns_").
-  _stub_cflags=(-fPIC)
-  # Some hosts define __linux__ but not __GLIBC__ when preprocessing the stub; keep body.
-  if [[ "$(uname -s)" == Linux ]] && command -v gcc >/dev/null 2>&1; then
-    _dM=$(echo | gcc -dM -E - 2>/dev/null || true)
-    if echo "$_dM" | grep -q '#define __linux__' && ! echo "$_dM" | grep -q '#define __GLIBC__'; then
-      _stub_cflags+=(-D__GLIBC__=1)
-    fi
-  fi
-  gcc "${_stub_cflags[@]}" -c "$SCRIPT_DIR/mv2_ld_glibc_stub.c" -o "$SCRIPT_DIR/mv2_ld_glibc_stub.o"
-  # mv2_mpi_wrappers.c provides hgcc_gethostname / hgcc_gethostid / hgcc_usleep
-  # stubs that hgcc-rewritten code in libmpi.a references via replacements/unistd.h.
-  # (The MPI_* -> PMPI_* wrappers in the same file are no-ops on Linux once the
-  # MVAPICH2 weak-alias #pragmas take effect, but they are harmless.)
-  gcc -fPIC -c mv2_mpi_wrappers.c -I "$MV2_INC" -o "$SCRIPT_DIR/mv2_mpi_wrappers.o"
-  # -Bsymbolic-functions: prefer our own (MVAPICH2) MPI_* function symbols over
-  # any MPI_* the host sst process already loaded (e.g. Open MPI pulled in as an
-  # MCA component). Without this the DSO's MPI_Init call resolves to Open MPI's
-  # MPI_Init, which is already initialized and errors "MPI_INIT called more than
-  # once". Use the -functions variant rather than plain -Bsymbolic so extern DATA
-  # symbols (e.g. SST::Hg::GlobalVariable::glblCtx, sst_hg_global_stacksize) keep
-  # resolving to libhg's single-instance definitions instead of getting a local
-  # copy in the DSO (which would make the per-rank globals segment diverge from
-  # the one libhg uses to allocate it, causing OOB writes).
-  gcc -shared \
-    -Wl,-Bsymbolic-functions \
-    -Wl,-rpath,"$PREFIX/lib" \
-    -Wl,-rpath,"$HG_ELEMS_LIB" \
-    -Wl,-rpath,"$OFI_EXT_LIB" \
-    -Wl,--whole-archive "$LIBMPI_NOPMI" -Wl,--no-whole-archive \
-    -L "$OFI_EXT_LIB" -lpmi -lfabric \
-    -L "$HG_ELEMS_LIB" -Wl,--no-as-needed -lhg -Wl,--as-needed \
-    "$SCRIPT_DIR/mv2_ld_glibc_stub.o" \
-    "$SCRIPT_DIR/mv2_mpi_wrappers.o" \
-    register_app_gen.o test_mv2_sendrecv.o -o libtest_mv2_sendrecv.so
-  rm -f "$SCRIPT_DIR/mv2_ld_glibc_stub.o" "$SCRIPT_DIR/mv2_mpi_wrappers.o"
-}
-
-# Step 1: Compile with hgcc (injects skeleton.h, pthread replacement headers).
-# Step 2: Compile MPI wrappers (macOS only — provides strong global MPI_*
-#         symbols to override the local weak aliases from #pragma weak).
-# Step 3: Link manually with -force_load to pull all archive members and
-#         the strong wrappers that ensure MPI_* resolves inside the bundle.
 echo "Building libtest_mv2_sendrecv ..."
-hgcc --replacements pthread.h -std=gnu11 -c test_mv2_sendrecv.c -I "$MV2_INC"
-
-# hgcc embeds app registration under a path-mangled name inside the .o.
-# Generate a tiny C++ shim that re-registers the same function under the
-# short app name the SST Python driver expects ("test_mv2_sendrecv").
-# Darwin: nm -gU = externals that are defined. GNU nm: -U means --unicode; use
-# --defined-only instead.
-if [[ "$(uname -s)" == Darwin ]]; then
-  _nm_def=(nm -gU)
-else
-  _nm_def=(nm -g --defined-only)
-fi
-MAIN_SYM=$("${_nm_def[@]}" test_mv2_sendrecv.o \
-  | awk '/sst_hg_user_main/{print $3; exit}' | sed 's/^_//')
-if [[ -z "$MAIN_SYM" ]]; then
-  echo "Error: could not find sst_hg_user_main symbol in test_mv2_sendrecv.o"
-  exit 1
-fi
-cat > register_app_gen.cpp <<CPPEOF
-extern "C" int ${MAIN_SYM}(int, char**);
-typedef int (*main_fxn)(int, char**);
-extern int userSkeletonMainInitFxn(const char* name, main_fxn fxn);
-static int _reg = userSkeletonMainInitFxn("test_mv2_sendrecv", ${MAIN_SYM});
-CPPEOF
-clang++ -std=c++11 -c register_app_gen.cpp \
-  -I"$PREFIX/include/sst/elements"
-
-# Strip MVAPICH2/MPICH embedded simple PMI client so the SST PMI library is used.
-# Object names inside libmpi.a vary by version and platform (e.g. lib_libmpi_la-* vs
-# other prefixes); remove every archive member whose name contains simple_pmi.
-LIBMPI_NOPMI="$SCRIPT_DIR/libmpi_nopmi.a"
-cp "$MV2_LIB/libmpi.a" "$LIBMPI_NOPMI"
-while IFS= read -r _mem; do
-  [[ -z "$_mem" ]] && continue
-  ar -d "$LIBMPI_NOPMI" "$_mem" 2>/dev/null || true
-done < <(ar t "$LIBMPI_NOPMI" 2>/dev/null | grep -i 'simple_pmi' || true)
-
-if [[ "$(uname -s)" == Darwin ]]; then
-  _build_bundle_darwin
-else
-  _build_bundle_linux
-fi
-rm -f "$LIBMPI_NOPMI"
-rm -f test_mv2_sendrecv.o register_app_gen.o register_app_gen.cpp
+hgcc --mpi=mvapich2 --app-name=test_mv2_sendrecv \
+     -std=gnu11 -fPIC test_mv2_sendrecv.c \
+     -o libtest_mv2_sendrecv.so
 
 if [[ "$(uname -s)" == Linux ]] && command -v ldd >/dev/null 2>&1; then
   _bad=$(ldd "$SCRIPT_DIR/libtest_mv2_sendrecv.so" 2>/dev/null | grep 'not found' || true)
@@ -190,8 +69,7 @@ if ! command -v sst >/dev/null 2>&1; then
   exit 1
 fi
 
-# Fail early with a clear hint if the dynamic linker cannot resolve sst's deps
-# (GNU ldd reports "not found"; macOS uses different tooling — skip there).
+# Fail early with a hint
 if [[ "$(uname -s)" == Linux ]] && command -v ldd >/dev/null 2>&1; then
   _sst_bin=$(command -v sst)
   _ldd_bad=$(ldd "$_sst_bin" 2>/dev/null | grep 'not found' || true)
@@ -206,12 +84,7 @@ if [[ "$(uname -s)" == Linux ]] && command -v ldd >/dev/null 2>&1; then
   fi
 fi
 
-# Preflight resource check. SST + MVAPICH2 globals + Mercury stacks easily
-# need several hundred MB; shared front-end / login nodes often have tight
-# cgroup / ulimit caps that SIGKILL the process mid-MPI_Init with a segfault
-# that looks like a NULL deref. Catch that before we spend 10s loading plugins.
-# Override threshold with SST_HG_MV2_MIN_MEM_MB; skip entirely with
-# SST_HG_MV2_SKIP_PREFLIGHT=1.
+# Preflight resource check.
 _min_mem_mb="${SST_HG_MV2_MIN_MEM_MB:-1024}"
 if [[ "${SST_HG_MV2_SKIP_PREFLIGHT:-0}" != 1 ]]; then
   _pf_warn=""
@@ -252,22 +125,16 @@ if [[ "${SST_HG_MV2_SKIP_PREFLIGHT:-0}" != 1 ]]; then
     fi
   fi
 
-  # Not inside a scheduler allocation on Linux -> warn (not fatal).
-  if [[ "$(uname -s)" == Linux ]]; then
-    if [[ -z "${SLURM_JOB_ID:-}${PBS_JOBID:-}${LSB_JOBID:-}${FLUX_JOB_ID:-}" ]]; then
-      _pf_warn+="  not inside a SLURM/PBS/LSF/Flux job; you may be on a shared front-end"$'\n'
-    fi
-  fi
 
   if [[ -n "$_pf_fatal" ]]; then
-    echo "Error: preflight resource check failed:"
+    echo "Error: resource check failed:"
     echo -n "$_pf_fatal"
     echo "Fix: run inside a compute allocation (e.g. salloc -N1 --mem=4G)."
     echo "     Or override:  SST_HG_MV2_MIN_MEM_MB=<mb>  or  SST_HG_MV2_SKIP_PREFLIGHT=1"
     exit 1
   fi
   if [[ -n "$_pf_warn" ]]; then
-    echo "Warning: preflight resource check:"
+    echo "Warning: resource check:"
     echo -n "$_pf_warn"
     [[ -n "$_avail_mb" ]] && echo "  (MemAvailable ${_avail_mb} MB, threshold ${_min_mem_mb} MB)"
   fi

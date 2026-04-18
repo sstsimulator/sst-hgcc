@@ -43,6 +43,113 @@ Questions? Contact sst-macro-help@sandia.gov
 """
 
 import os
+import platform
+import sys
+
+
+def _add_mv2_link(ctx, ldTarget, args, cmds, objects):
+  """Append MV2-specific compile + link commands for a --mpi=mvapich2 .so.
+
+  Mirrors the manual steps in tests/mv2/run_test_mv2_sendrecv.sh so a single
+  hgcc invocation replaces the hand-rolled shell pipeline.
+
+  Step order (appended to `cmds`, which is executed sequentially later):
+    1. gen_register_shim.py: nm scans user .o for the hgcc-mangled
+       sst_hg_user_main symbol, writes a tiny C shim, compiles to shim.o.
+    2. Compile mv2_ld_glibc_stub.c (Linux) and mv2_mpi_wrappers.c from the
+       installed support dir.
+    3. Link the final .so with libmpi_nopmi.a whole-archive (+ -force_load on
+       macOS), Iris libpmi / libfabric, libhg (Linux), user objects, and the
+       shim / stub objects.
+  """
+  from hgccvars import prefix
+  try:
+    from hgccvars import mv2SupportDir as _mv2SupportDir
+  except ImportError:
+    _mv2SupportDir = os.path.join(prefix, "share", "hgcc", "mv2")
+  try:
+    from hgccvars import hgElementsLibDir as _hgElementsLibDir
+  except ImportError:
+    _hgElementsLibDir = os.path.join(prefix, "lib", "sst-elements-library")
+
+  mpi_prefix = ctx.mpi_prefix
+  app_name = ctx.app_name
+  mpi_lib = os.path.join(mpi_prefix, "lib")
+  mpi_inc = os.path.join(mpi_prefix, "include")
+  libmpi_nopmi = os.path.join(mpi_lib, "libmpi_nopmi.a")
+  if not os.path.isfile(libmpi_nopmi):
+    sys.exit(
+        "hgcc: %s not found; rebuild mvapich2 so the post-install "
+        "simple_pmi strip runs (produces libmpi_nopmi.a)." % libmpi_nopmi)
+
+  ext_lib = os.path.join(_hgElementsLibDir, "ext")
+  if not os.path.isdir(ext_lib):
+    sys.exit(
+        "hgcc: Iris ext lib dir not found: %s (build sst-elements first)."
+        % ext_lib)
+
+  support_wrappers = os.path.join(_mv2SupportDir, "mv2_mpi_wrappers.c")
+  support_glibc_stub = os.path.join(_mv2SupportDir, "mv2_ld_glibc_stub.c")
+  gen_shim_py = os.path.join(_mv2SupportDir, "gen_register_shim.py")
+  for f in (support_wrappers, support_glibc_stub, gen_shim_py):
+    if not os.path.isfile(f):
+      sys.exit("hgcc: MV2 support file missing: %s" % f)
+
+  out_dir = os.path.dirname(os.path.abspath(ldTarget)) or os.getcwd()
+  shim_o = os.path.join(out_dir, "register_app_gen.%s.o" % app_name)
+  sst_elements_inc = os.path.join(prefix, "include", "sst", "elements")
+
+  user_objs = [o for o in objects if o.endswith(".o")]
+  shim_cmd = [
+      sys.executable, gen_shim_py, app_name, ctx.cxx, sst_elements_inc, shim_o,
+      "--",
+  ] + user_objs
+  cmds.append([None, shim_cmd, [shim_o]])
+
+  glibc_stub_o = os.path.join(out_dir, "mv2_ld_glibc_stub.o")
+  if platform.system() != "Darwin":
+    stub_cmd = [ctx.cc, "-fPIC", "-c", support_glibc_stub, "-o", glibc_stub_o]
+    cmds.append([None, stub_cmd, [glibc_stub_o]])
+
+  wrappers_o = os.path.join(out_dir, "mv2_mpi_wrappers.o")
+  wrappers_cmd = [
+      ctx.cc, "-fPIC", "-c", support_wrappers,
+      "-I%s" % mpi_inc, "-o", wrappers_o,
+  ]
+  cmds.append([None, wrappers_cmd, [wrappers_o]])
+
+  is_darwin = (platform.system() == "Darwin")
+  link = [ctx.cc]
+  if is_darwin:
+    link += [
+        "-bundle", "-undefined", "dynamic_lookup",
+        "-Wl,-rpath,%s" % os.path.join(prefix, "lib"),
+        "-Wl,-rpath,%s" % ext_lib,
+        "-Wl,-force_load,%s" % libmpi_nopmi,
+        "-L%s" % ext_lib, "-lpmi", "-lfabric",
+        wrappers_o,
+        shim_o,
+    ]
+    link += objects
+    link += ["-o", ldTarget]
+  else:
+    link += [
+        "-shared",
+        "-Wl,-Bsymbolic-functions",
+        "-Wl,-rpath,%s" % os.path.join(prefix, "lib"),
+        "-Wl,-rpath,%s" % _hgElementsLibDir,
+        "-Wl,-rpath,%s" % ext_lib,
+        "-Wl,--whole-archive", libmpi_nopmi, "-Wl,--no-whole-archive",
+        "-L%s" % ext_lib, "-lpmi", "-lfabric",
+        "-L%s" % _hgElementsLibDir,
+        "-Wl,--no-as-needed", "-lhg", "-Wl,--as-needed",
+        glibc_stub_o,
+        wrappers_o,
+        shim_o,
+    ]
+    link += objects
+    link += ["-o", ldTarget]
+  cmds.append([None, link, []])
 
 
 def _conftest_strip_sst_pmi_link(flags, lib_dirs, libs):
@@ -79,6 +186,15 @@ def addLink(ctx, ldTarget, args, cmds, objects, toExe=False):
   from hgccvars import soFlagsStr
 
   is_conftest = getattr(ctx, 'is_conftest', False)
+
+  # --mpi=mvapich2: skip the generic link builder entirely and emit the MV2
+  # shim + support stubs + whole-archive link that used to live in the test
+  # driver shell script.
+  if (not is_conftest and not toExe
+      and getattr(ctx, "mpi_impl", None) == "mvapich2"
+      and (ldTarget.endswith(".so") or ldTarget.endswith(".dylib"))):
+    _add_mv2_link(ctx, ldTarget, args, cmds, objects)
+    return
 
   wlFlags = getattr(ctx, 'wlFlags', [])
 
