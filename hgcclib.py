@@ -318,7 +318,10 @@ def run(typ, extraLibs=""):
   parser.add_argument("--host-cxx", type=str, help="override the C++ compiler used underneath from the one used to build SST/macro")
   parser.add_argument("--host-cc", type=str, help="override the C compiler used underneath from the one used to build SST/macro")
   parser.add_argument("--replacements", type=str, help="comma-separated list of replacement headers to include (e.g., 'omp.h,pthread.h')")
-  
+  parser.add_argument("--mpi", type=str, help="build against a pre-installed MPI implementation (supported: mvapich2)")
+  parser.add_argument("--mpi-prefix", type=str, help="install prefix of the MPI implementation selected by --mpi (default: $SST_HG_MV2_PREFIX or <prefix>/mvapich2)")
+  parser.add_argument("--app-name", type=str, help="app name to register with userSkeletonMainInitFxn (default: output basename stripped of lib prefix and .so/.dylib suffix)")
+
   args, extraArgs = parser.parse_known_args(_filtered_argv)
 
   ctx = Context()
@@ -345,7 +348,39 @@ def run(typ, extraLibs=""):
   ctx.typ = typ
   ctx.sstCore = sstCore
   ctx.hasClang = bool(clangCppFlagsStr)
-  
+
+  # MVAPICH2 (and future --mpi=<impl>) needs the Mercury pthread replacement and
+  # an -I on the MPI install's headers. Fold pthread.h into args.replacements so
+  # the existing temp-dir replacement machinery below handles it uniformly.
+  ctx.mpi_impl = None
+  ctx.mpi_prefix = None
+  ctx.app_name = None
+  if args.mpi and not ctx.is_conftest:
+    _impl = args.mpi.strip().lower()
+    if _impl != "mvapich2":
+      sys.exit("hgcc: --mpi=%s not supported (only 'mvapich2' for now)" % args.mpi)
+    ctx.mpi_impl = _impl
+    mpi_prefix_default = os.path.join(prefix, "mvapich2")
+    ctx.mpi_prefix = (args.mpi_prefix
+                      or os.environ.get("SST_HG_MV2_PREFIX")
+                      or mpi_prefix_default)
+    if args.app_name:
+      ctx.app_name = args.app_name
+    else:
+      _out = args.output or ""
+      _base = os.path.basename(_out)
+      for _suf in (".so", ".dylib"):
+        if _base.endswith(_suf):
+          _base = _base[:-len(_suf)]
+          break
+      if _base.startswith("lib"):
+        _base = _base[3:]
+      ctx.app_name = _base or "sst_hg_mpi_app"
+    _existing = [r.strip() for r in (args.replacements or "").split(',') if r.strip()]
+    if "pthread.h" not in _existing:
+      _existing.append("pthread.h")
+      args.replacements = ",".join(_existing)
+
   # Skip replacements for conftest (real system headers for configure).
   ctx.requestedReplacements = []
   if args.replacements and not ctx.is_conftest:
@@ -402,6 +437,13 @@ def run(typ, extraLibs=""):
 
     args.I.insert(0, tempReplacementsDir)
     args.I.insert(1, os.path.join(prefix, "include"))
+
+  # Inject MPI include path after the replacement temp dir so MV2's mpi.h is
+  # preferred over any older header layering, but replacement headers still win.
+  if ctx.mpi_impl and not ctx.is_conftest:
+    mpi_inc = os.path.join(ctx.mpi_prefix, "include")
+    if mpi_inc not in args.I:
+      args.I.append(mpi_inc)
 
   # AC_PROG_CXX likes to stick CXXFLAGS into CXX
   ctx.cxx = ctx.cxx.split(" ")[0]
