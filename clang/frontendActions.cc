@@ -189,7 +189,17 @@ void
 ReplaceAction::EndSourceFileAction()
 {
   SourceManager &SM = CompilerGlobals::SM();
-  std::string sourceFile = SM.getFileEntryForID(SM.getMainFileID())->getName().str();
+  std::string sourceFile;
+#if CLANG_VERSION_MAJOR >= 15
+  if (auto mainRef = SM.getFileEntryRefForID(SM.getMainFileID()))
+    sourceFile = mainRef->getName().str();
+  else
+    return;
+#else
+  const clang::FileEntry* fe = SM.getFileEntryForID(SM.getMainFileID());
+  if (!fe) return;
+  sourceFile = fe->getName().str();
+#endif
   std::string sstSourceFile, sstGlobalFile;
   std::size_t lastSlashPos = sourceFile.find_last_of('/');
   if (lastSlashPos == std::string::npos){

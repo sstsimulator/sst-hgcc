@@ -57,7 +57,8 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
       CPPFLAGS="$CPPFLAGS $CLANG_CPPFLAGS"
     fi
 
-    CXXFLAGS="$CXXFLAGS $SST_CXXFLAGS $STD_CXXFLAGS"
+    dnl SST_CXXFLAGS last so -std=c++17 wins over STD_CXXFLAGS (libTooling needs C++17).
+    CXXFLAGS="$CXXFLAGS $STD_CXXFLAGS $SST_CXXFLAGS"
 
     AC_CHECK_HEADER([clang/AST/AST.h],
       found_clang=yes
@@ -79,6 +80,9 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
   if test "X$found_clang" = "Xno"; then
     AM_CONDITIONAL(HAVE_CLANG, false)
     AM_CONDITIONAL(CLANG_NEED_LIBCPP,false)
+    AC_SUBST([CLANG_LIBTOOLING_CXX_RESOURCE_FLAGS], [""])
+    AC_SUBST([USE_LIBCXX_FOR_AST], [False])
+    AC_SUBST([AST_GNUXX_REMAP], [False])
   else
     AM_CONDITIONAL(HAVE_CLANG, true)
     offset=`$pyexe $srcdir/config_tools/get_offsetof_macro $CXX`
@@ -104,7 +108,7 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
       AM_CONDITIONAL(CLANG_NEED_LIBCPP,false)
     fi
 
-    clang_compatibility=`$pyexe $srcdir/config_tools/check_clang_compatibility $CXX $clang $srcdir/config_tools/clang_version_test.cc $CXXFLAGS $SST_CXXFLAGS $STD_CXXFLAGS`
+    clang_compatibility=`$pyexe $srcdir/config_tools/check_clang_compatibility $CXX $clang $srcdir/config_tools/clang_version_test.cc $CXXFLAGS $STD_CXXFLAGS $SST_CXXFLAGS`
 
     if test "X$clang_compatibility" != "X"; then
       AC_MSG_ERROR([$clang_compatibility])
@@ -114,6 +118,27 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
     AC_SUBST([CLANG_LIBTOOLING_SYSTEM_LIBS])
     AC_SUBST([CLANG_LIBTOOLING_CXX_FLAGS], "`$pyexe $srcdir/config_tools/get_clang_includes $clang -E -v -std=c++1y -stdlib=libc++ -x c++`")
     AC_SUBST([CLANG_LIBTOOLING_C_FLAGS], "`$pyexe $srcdir/config_tools/get_clang_includes $clang -E -v`")
+    dnl Resource-dir include only: avoids libc++ -I mixing with libstdc++ on Linux AST builds.
+    resource_dir=`$clang/bin/clang -print-resource-dir`
+    AC_SUBST([CLANG_LIBTOOLING_CXX_RESOURCE_FLAGS], ["-I${resource_dir}/include"])
+    if test "X$darwin" = "Xtrue"; then
+      AC_SUBST([USE_LIBCXX_FOR_AST], [True])
+      AC_SUBST([AST_GNUXX_REMAP], [False])
+    else
+      AC_SUBST([USE_LIBCXX_FOR_AST], [False])
+      AC_MSG_CHECKING([whether Clang needs gnu++ dialect for libstdc++ AST parse])
+      astprobe=conftest_ast$$.cxx
+      trap 'rm -f "$astprobe"' 0 1 2 13 15
+      echo '#include <map>' > "$astprobe"
+      if $clang/bin/clang++ -fsyntax-only -stdlib=libstdc++ -std=c++11 "$astprobe" >/dev/null 2>&1; then
+        AC_SUBST([AST_GNUXX_REMAP], [False])
+        AC_MSG_RESULT([no])
+      else
+        AC_SUBST([AST_GNUXX_REMAP], [True])
+        AC_MSG_RESULT([yes])
+      fi
+      rm -f "$astprobe"
+    fi
     clang_has_float128=`$pyexe $srcdir/config_tools/get_float_128 $clang/bin/clang++`
   fi
 

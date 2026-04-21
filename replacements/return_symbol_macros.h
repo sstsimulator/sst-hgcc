@@ -90,4 +90,3 @@ Questions? Contact sst-macro-help@sandia.gov
 #define putenv hgcc_putenv
 #undef hgcc_must_return_putenv
 #endif
-

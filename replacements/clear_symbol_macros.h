@@ -47,12 +47,12 @@ Questions? Contact sst-macro-help@sandia.gov
 #define hgcc_must_return_free
 #endif
 
-#ifdef memset
+#if defined(memset) && defined(hgcc_string_h_included)
 #undef memset
 #define hgcc_must_return_memset
 #endif
 
-#ifdef memcpy
+#if defined(memcpy) && defined(hgcc_string_h_included)
 #undef memcpy
 #define hgcc_must_return_memcpy
 #endif
@@ -64,7 +64,7 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifdef gethostid
 #undef gethostid
-#define hgcc_must_return_getid
+#define hgcc_must_return_gethostid
 #endif
 
 #ifdef mutex
@@ -84,6 +84,6 @@ Questions? Contact sst-macro-help@sandia.gov
 
 #ifdef putenv
 #undef putenv
-#define hgcc_must_return_puttenv
+#define hgcc_must_return_putenv
 #endif
 

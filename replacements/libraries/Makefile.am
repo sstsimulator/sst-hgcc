@@ -13,7 +13,6 @@
 SUBDIRS = \
 machines \
 blas \
-pthread \
 omp 
 
 

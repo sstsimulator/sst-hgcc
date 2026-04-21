@@ -1,4 +1,4 @@
-﻿/**
+/**
 Copyright 2009-2023 National Technology and Engineering Solutions of Sandia,
 LLC (NTESS).  Under the terms of Contract DE-NA-0003525, the U.S. Government
 retains certain rights in this software.
@@ -729,7 +729,8 @@ SSTBlockingPragma::SSTBlockingPragma(SourceLocation loc, std::map<std::string, s
 void
 SSTBlockingPragma::activate(Stmt* s)
 {
-  std::string text = "ssthg_blocking_call(" + condition_ + "," + timeout_ + ",\"" + api_ + "\");";
+  // sst_hg_blocking_call: visible before skeleton.h macro ssthg_blocking_call.
+  std::string text = "sst_hg_blocking_call(" + condition_ + "," + timeout_ + ",\"" + api_ + "\");";
   CompilerGlobals::rewriter.InsertText(getStart(s), text, false, false);
 }
 

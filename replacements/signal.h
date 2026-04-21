@@ -47,15 +47,26 @@ Questions? Contact sst-macro-help@sandia.gov
 #ifndef HGCC_INSIDE_STL
 #define HGCC_INSIDE_STL
 #define SIGNAL_H_OWNS_STL
-#include <hgcc_pthread_clear.h>
+#ifdef SST_HG_LIBRARIES_PTHREAD_HG_PTHREAD_MACRO_H
+#define SIGNAL_H_HAD_MERCURY_PTHREAD
+#include <ssthg_pthread_clear.h>
 #endif
-
 #include_next <signal.h>
+#undef HGCC_INSIDE_STL
+#ifdef SIGNAL_H_HAD_MERCURY_PTHREAD
+#include <hgcc_pthread_return.h>
+#undef SIGNAL_H_HAD_MERCURY_PTHREAD
+#endif
+#elif defined(SST_HG_LIBRARIES_PTHREAD_HG_PTHREAD_MACRO_H)
+#include <ssthg_pthread_clear.h>
+#include_next <signal.h>
+#include <hgcc_pthread_return.h>
+#else
+#include_next <signal.h>
+#endif
 
 #ifdef SIGNAL_H_OWNS_STL
 #undef SIGNAL_H_OWNS_STL
-#undef HGCC_INSIDE_STL
-#include <hgcc_pthread_return.h>
 #endif
 
 #endif
