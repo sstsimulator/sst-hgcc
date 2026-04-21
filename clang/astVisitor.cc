@@ -1327,6 +1327,9 @@ SkeletonASTVisitor::TraverseLambdaExpr(LambdaExpr* expr)
 bool
 SkeletonASTVisitor::doTraverseLambda(LambdaExpr* expr)
 {
+  if (isInSystemHeader(expr->getBeginLoc())){
+    return RecursiveASTVisitor<SkeletonASTVisitor>::TraverseLambdaExpr(expr);
+  }
   switch (expr->getCaptureDefault()){
     case LCD_None: {
       EmplaceGuard<std::set<const clang::Decl*>> eg(globalsTouched_);
