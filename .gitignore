@@ -1,5 +1,15 @@
 # Autotools
 /aclocal.m4
+# libtoolize copies these into acinclude/ (also ar-lib, compile, depcomp, missing at repo root)
+/acinclude/libtool.m4
+/acinclude/ltoptions.m4
+/acinclude/ltsugar.m4
+/acinclude/ltversion.m4
+/acinclude/lt~obsolete.m4
+/ar-lib
+/compile
+/depcomp
+/missing
 /autom4te.cache/
 /config.guess
 /config.h
