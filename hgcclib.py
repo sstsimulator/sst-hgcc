@@ -489,7 +489,9 @@ def run(typ, extraLibs=""):
     val = int(os.environ["SST_HG_SKELETONIZE"])
     skeletonizing = bool(val)
   if skeletonizing or (not args.skeletonize is None):
-    ctx.clangArgs.append("--skeletonize")
+    # Apple-LLVM-linked ssthg_clang's CommonOptionsParser rejects --skeletonize;
+    # ssthg_clang reads SST_HG_SKELETONIZE directly, so propagate via env.
+    os.environ["SST_HG_SKELETONIZE"] = "1"
     ctx.setMode(ctx.SKELETONIZE)
 
   memoizing = False
