@@ -20,7 +20,15 @@ bin_SCRIPTS = \
 
 AM_LDFLAGS = -ldl
 
-EXTRA_DIST = clang hgcc_include
+EXTRA_DIST = clang hgcc_include support
+
+# MV2 (and future --mpi=<impl>) link-time support sources consumed by hgcc at
+# link time when --mpi=mvapich2 is passed. Installed to $(datadir)/hgcc/mv2.
+mv2supportdir = $(datadir)/hgcc/mv2
+dist_mv2support_DATA = \
+  support/mv2/mv2_mpi_wrappers.c \
+  support/mv2/mv2_ld_glibc_stub.c \
+  support/mv2/gen_register_shim.py
 
 if HAVE_CLANG
 
