@@ -1285,6 +1285,12 @@ SkeletonASTVisitor::TraverseLambdaExpr(LambdaExpr* expr)
 bool
 SkeletonASTVisitor::doTraverseLambda(LambdaExpr* expr)
 {
+  // Skip lambdas that live inside system headers (e.g. libc++ internals).
+  // We never want to skeletonize globals captured by system header lambdas
+  if (isInSystemHeader(getStart(expr))) {
+    return RecursiveASTVisitor<SkeletonASTVisitor>::TraverseLambdaExpr(expr);
+  }
+
   switch (expr->getCaptureDefault()){
     case LCD_None: {
       EmplaceGuard<std::set<const clang::Decl*>> eg(globalsTouched_);
