@@ -132,8 +132,8 @@ ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
  -lclangBasic \
  -lclangASTMatchers \
  -lclangFormat \
- -lclangFrontend \
  -lclangDriver \
+ -lclangFrontend \
  -lclangParse \
  -lclangSerialization \
  -lclangSema \
@@ -146,12 +146,9 @@ ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
  -lclangBasic \
  -lclangSupport \
  -lclangAPINotes \
+ -lclangOptions \
+ -lclangAnalysisLifetimeSafety \
  @CLANG_LIBTOOLING_LIBS@ \
  @CLANG_LIBTOOLING_SYSTEM_LIBS@
-
-# TODO Figure out why this was included
-# if CLANG_NEED_LIBCPP
-# ssthg_clang_LDFLAGS += -lclang-cpp
-# endif
 
 endif

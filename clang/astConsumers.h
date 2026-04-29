@@ -69,22 +69,24 @@ class SkeletonASTConsumer : public clang::ASTConsumer {
       clang::Decl* d = *tmp;
 
       v.preVisitTopLevelDecl(d);
-      try {
-        v.TraverseDecl(d);
-      } catch (StmtDeleteException& e) {
-        std::string error = std::string("unhandled delete exception on expression")
-            + " of type " + e.deleted->getStmtClassName();
-        internalError(getStart(e.deleted), error);
-      } catch (DeclDeleteException& e) {
-        if (e.deleted != d){
-          std::string error = std::string("unhandled delete exception on declaration")
-            + " of type " + e.deleted->getDeclKindName();
-          internalError(getStart(e.deleted), error);
-        } else {
-          //top-level declaration deleted
-          //stop visiting this declaration
-          allTopLevelDecls_.erase(tmp);
+      v.TraverseDecl(d);
+      if (v.deletedNode_.hasValue()) {
+        if (v.deletedNode_.isStmt()) {
+          std::string error = std::string("unhandled delete on expression")
+              + " of type " + v.deletedNode_.stmtNode->getStmtClassName();
+          internalError(getStart(v.deletedNode_.stmtNode), error);
+        } else if (v.deletedNode_.isDecl()) {
+          if (v.deletedNode_.declNode != d) {
+            std::string error = std::string("unhandled delete on declaration")
+              + " of type " + v.deletedNode_.declNode->getDeclKindName();
+            internalError(getStart(v.deletedNode_.declNode), error);
+          } else {
+            //top-level declaration deleted
+            //stop visiting this declaration
+            allTopLevelDecls_.erase(tmp);
+          }
         }
+        v.deletedNode_.clear();
       }
       v.postVisitTopLevelDecl(d);
     }

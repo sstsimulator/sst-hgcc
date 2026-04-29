@@ -67,11 +67,7 @@ ReplaceAction::ReplaceAction() :
 }
 
 bool
-#if CLANG_VERSION_MAJOR <=4
-ReplaceAction::BeginSourceFileAction(CompilerInstance &CI, llvm::StringRef Filename)
-#else
 ReplaceAction::BeginSourceFileAction(CompilerInstance &CI)
-#endif
 {
   ci_ = &CI;
   
@@ -85,11 +81,7 @@ class DeleteOpenMPPragma : public PragmaHandler
 {
  public:
   DeleteOpenMPPragma() : PragmaHandler("omp") {}
-#if CLANG_VERSION_MAJOR >= 9
   void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer, Token &FirstToken) override {}
-#else
-  void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer, Token &FirstToken) override {}
-#endif
 };
 
 std::unique_ptr<clang::ASTConsumer>
@@ -97,11 +89,7 @@ ReplaceAction::CreateASTConsumer(clang::CompilerInstance& CI, clang::StringRef /
   CompilerGlobals::rewriter.setSourceMgr(CI.getSourceManager(), CI.getLangOpts());
   CompilerGlobals::ci = &CI;
   initPragmas();
-#if __cplusplus >= 201402L
   return std::make_unique<SkeletonASTConsumer>(first_pass_visitor_, skeleton_visitor_);
-#else
-  return llvm::make_unique<SkeletonASTConsumer>(first_pass_visitor_, skeleton_visitor_);
-#endif
 }
 
 void
@@ -177,19 +165,14 @@ ReplaceAction::initPragmas()
 {
   /** Need this to figure out begin location of #pragma */
   CompilerGlobals::CI().getPreprocessor().addPPCallbacks(
-#if __cplusplus >= 201402L
-      std::make_unique<PragmaPPCallback>()
-#else
-      llvm::make_unique<PragmaPPCallback>()
-#endif
-      );
+      std::make_unique<PragmaPPCallback>());
 }
 
 void
 ReplaceAction::EndSourceFileAction()
 {
   SourceManager &SM = CompilerGlobals::SM();
-  std::string sourceFile = SM.getFileEntryForID(SM.getMainFileID())->getName().str();
+  std::string sourceFile = SM.getFileEntryRefForID(SM.getMainFileID())->getName().str();
   std::string sstSourceFile, sstGlobalFile;
   std::size_t lastSlashPos = sourceFile.find_last_of('/');
   if (lastSlashPos == std::string::npos){
@@ -202,11 +185,7 @@ ReplaceAction::EndSourceFileAction()
   }
 
   std::error_code rc;
-#if CLANG_VERSION_MAJOR >= 7
   llvm::raw_fd_ostream fs(sstSourceFile, rc, llvm::sys::fs::FA_Write);
-#else
-  llvm::raw_fd_ostream fs(sstSourceFile, rc, llvm::sys::fs::F_RW);
-#endif
   CompilerGlobals::rewriter.getEditBuffer(CompilerGlobals::rewriter.getSourceMgr().getMainFileID()).write(fs);
   fs.close();
 

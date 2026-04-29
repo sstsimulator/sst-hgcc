@@ -260,7 +260,7 @@ SSTComputePragma::activate(Stmt *stmt)
       break;
   }
 #undef scase
-  throw StmtDeleteException(stmt);
+  CompilerGlobals::deletionSignal.signalStmtDelete(stmt);
 }
 
 void
@@ -276,7 +276,7 @@ SSTComputePragma::activate(Decl* d)
       break;
   }
 #undef dcase
-  throw DeclDeleteException(d);
+  CompilerGlobals::deletionSignal.signalDeclDelete(d);
 }
 
 void

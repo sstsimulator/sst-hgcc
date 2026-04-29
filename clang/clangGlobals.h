@@ -181,48 +181,30 @@ struct PragmaConfig {
   PragmaConfig() = default;
 };
 
+struct PragmaDeletionSignal {
+  bool stmtDeleted = false;
+  bool declDeleted = false;
+  clang::Stmt* deletedStmt = nullptr;
+  clang::Decl* deletedDecl = nullptr;
+
+  void signalStmtDelete(clang::Stmt* s) { stmtDeleted = true; deletedStmt = s; }
+  void signalDeclDelete(clang::Decl* d) { declDeleted = true; deletedDecl = d; }
+  bool hasSignal() const { return stmtDeleted || declDeleted; }
+  void clear() { stmtDeleted = false; declDeleted = false; deletedStmt = nullptr; deletedDecl = nullptr; }
+};
+
 struct CompilerGlobals {
 
+  // --- Immutable config (set once in setup(), read-only thereafter) ---
   static modes::Mode mode;
   static int modeMask;
-  static PragmaConfig pragmaConfig;
-  static ASTContextLists astContextLists;
-  static ASTNodeMetadata astNodeMetadata;
-  static ToolInfoRegistration toolInfoRegistration;
-  static clang::Rewriter rewriter;
+  static clang::CompilerInstance* ci;
+  static llvm::cl::OptionCategory ssthgCategoryOpt;
 
   static bool modeActive(int mask){
     return modeMask & mask;
   }
 
-  static int getActiveMode(){
-    return mode;
-  }
-
-  static union {
-    SkeletonASTVisitor* skeleton;
-    FirstPassASTVisitor* firstPass;
-  } visitor;
-
-  static void setVisitor(SkeletonASTVisitor& v){
-    visitor.skeleton = &v;
-  }
-
-  static void setVisitor(FirstPassASTVisitor& v){
-    visitor.firstPass = &v;
-  }
-
-  static llvm::cl::OptionCategory ssthgCategoryOpt;
-  static llvm::cl::opt<bool> memoizeOpt;
-  static llvm::cl::opt<bool> skeletonizeOpt;
-  static llvm::cl::opt<bool> shadowizeOpt;
-  static llvm::cl::opt<bool> puppetizeOpt;
-  static llvm::cl::opt<bool> encapsulateOpt;
-  static llvm::cl::opt<std::string> includeListOpt;
-  static llvm::cl::opt<bool> verboseOpt;
-  static llvm::cl::opt<bool> refactorMainOpt;
-  static llvm::cl::opt<bool> noRefactorMainOpt;
-  static clang::CompilerInstance* ci;
   static clang::CompilerInstance& CI() {
     return *ci;
   }
@@ -235,17 +217,41 @@ struct CompilerGlobals {
   static const clang::LangOptions& LangOpts() {
     return ci->getLangOpts();
   }
-  static clang::Sema& Sema() {
-    return ci->getSema();
-  }
-
-  /**
-   This contains the list of system include root paths.
-   This stores "real" paths, which are absolute paths after following all symlinks
-  */
-  static std::vector<std::string> realSystemIncludePaths;
-
-  static bool refactorMain;
 
   static void setup(clang::CompilerInstance* ci);
+
+  // --- Mutable traversal state (modified during AST passes) ---
+
+  // Written by all rewrite passes (7 files); read by EndSourceFileAction for output.
+  static clang::Rewriter rewriter;
+
+  // Pass 1 writes (pragma handlers populate maps) -> Pass 2 reads (visitors query maps).
+  // Cross-pass data channel for null variables, branch predictions, memory overrides.
+  static ASTNodeMetadata astNodeMetadata;
+
+  // Stack-like context tracking: pushed on scope entry, popped on exit via RAII PushGuard.
+  static ASTContextLists astContextLists;
+
+  // Per-statement flag toggled by SSTKeepPragma, checked/reset by PragmaActivateGuard.
+  static PragmaConfig pragmaConfig;
+
+  // Set by pragma activate() methods to signal node deletion; checked by PragmaActivateGuard.
+  static PragmaDeletionSignal deletionSignal;
+
+  // Accumulated output: pragmas register items, EndSourceFileAction reads them.
+  static ToolInfoRegistration toolInfoRegistration;
+
+  // Set once per pass to the active visitor instance.
+  static union {
+    SkeletonASTVisitor* skeleton;
+    FirstPassASTVisitor* firstPass;
+  } visitor;
+
+  static void setVisitor(SkeletonASTVisitor& v){
+    visitor.skeleton = &v;
+  }
+
+  static void setVisitor(FirstPassASTVisitor& v){
+    visitor.firstPass = &v;
+  }
 };

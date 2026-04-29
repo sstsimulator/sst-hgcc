@@ -51,6 +51,7 @@ using namespace clang::driver;
 using namespace clang::tooling;
 
 PragmaConfig CompilerGlobals::pragmaConfig;
+PragmaDeletionSignal CompilerGlobals::deletionSignal;
 ASTContextLists CompilerGlobals::astContextLists;
 ASTNodeMetadata CompilerGlobals::astNodeMetadata;
 ToolInfoRegistration CompilerGlobals::toolInfoRegistration;
@@ -59,29 +60,23 @@ CompilerInstance* CompilerGlobals::ci;
 Rewriter CompilerGlobals::rewriter;
 
 
+static bool hasSuffix(const std::string& filename, const std::string& suffix){
+  if (filename.size() < suffix.size()) return false;
+  return filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 bool
 isValidSrc(const std::string& filename){
-  //this is really dirty and not very resilient - but I don't know how to fix this yet
-  //for now just check to see if this is actually a valid source file
-  size_t size = filename.size();
-  if (size == 0) return false;
-  std::string suffix4; if (size >= 4) suffix4 = filename.substr(size-4,3);
-  std::string suffix3; if (size >= 3) suffix3 = filename.substr(size-3,3);
-  std::string suffix2 = filename.substr(size-2,2);
-  bool valid = suffix4 == ".cpp" || suffix3 == ".cc" || suffix2 == ".c" || suffix4 == ".cxx";
-  return valid;
+  if (filename.empty()) return false;
+  return hasSuffix(filename, ".cpp") || hasSuffix(filename, ".cc")
+      || hasSuffix(filename, ".c")   || hasSuffix(filename, ".cxx");
 }
 
 bool
 isCxx(const std::string& filename){
-  //this is really dirty and not very resilient - but I don't know how to fix this yet
-  //for now just check to see if this is actually a valid source file
-  size_t size = filename.size();
-  if (size == 0) return false;
-  std::string suffix4; if (size >= 4) suffix4 = filename.substr(size-4,3);
-  std::string suffix3; if (size >= 3) suffix3 = filename.substr(size-3,3);
-  bool valid = suffix4 == ".cpp" || suffix3 == ".cc" || suffix4 == ".cxx";
-  return valid;
+  if (filename.empty()) return false;
+  return hasSuffix(filename, ".cpp") || hasSuffix(filename, ".cc")
+      || hasSuffix(filename, ".cxx");
 }
 
 void
@@ -128,7 +123,7 @@ internalError(const Decl *decl, const std::string &error){
 
 void
 internalError(const std::string &error){
-	llvm::errs() << "Internal Error: " << error << "\n";
+  std::cerr << "internal error: " << error << std::endl;
   exit(EXIT_FAILURE);
 }
 
@@ -205,20 +200,18 @@ insertAfter(const Stmt *s, const std::string &text)
 std::string
 makeCxxName(const std::string& name)
 {
-  char uniqueFilePrefix[1024];
-  ::strcpy(uniqueFilePrefix, name.c_str());
-  int len = ::strlen(uniqueFilePrefix);
-  for (int i=0; i < len; ++i){
-    switch (uniqueFilePrefix[i]){
+  std::string result = name;
+  for (char& c : result){
+    switch (c){
       case '-':
       case '/':
       case '.':
       case ':':
-        uniqueFilePrefix[i] = '_';
+        c = '_';
         break;
     }
   }
-  return uniqueFilePrefix;
+  return result;
 }
 
 static Expr* nameToExpr(DeclContext* ctx, const std::string& name, clang::SourceLocation loc)

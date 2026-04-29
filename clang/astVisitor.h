@@ -144,20 +144,26 @@ struct IncrementGuard {
   int& myIdx;
 };
 
-struct StmtDeleteException : public std::runtime_error
-{
-  StmtDeleteException(clang::Stmt* deld) :
-    std::runtime_error("deleted expression"), deleted (deld){
-  }
-  clang::Stmt* deleted;
-};
+// Deletion signaling mechanism for pragma-driven AST node deletion.
+// When a pragma or visitor method needs to delete a node, it sets a
+// DeletedNodeInfo on the visitor instead of throwing an exception.
+// Each Traverse method checks for pending deletions after child traversals
+// and either handles them (if the deletion targets the current node) or
+// propagates them upward by returning early.
+struct DeletedNodeInfo {
+  enum Kind { None, StmtDeleted, DeclDeleted };
+  Kind kind = None;
+  clang::Stmt* stmtNode = nullptr;
+  clang::Decl* declNode = nullptr;
 
-struct DeclDeleteException : public std::runtime_error
-{
-  DeclDeleteException(clang::Decl* deld) :
-    std::runtime_error("deleted expression"), deleted (deld){
-  }
-  clang::Decl* deleted;
+  bool hasValue() const { return kind != None; }
+  bool isStmt() const { return kind == StmtDeleted; }
+  bool isDecl() const { return kind == DeclDeleted; }
+  bool isStmtMatch(clang::Stmt* s) const { return kind == StmtDeleted && stmtNode == s; }
+  bool isDeclMatch(clang::Decl* d) const { return kind == DeclDeleted && declNode == d; }
+  void clear() { kind = None; stmtNode = nullptr; declNode = nullptr; }
+  void setStmt(clang::Stmt* s) { kind = StmtDeleted; stmtNode = s; }
+  void setDecl(clang::Decl* d) { kind = DeclDeleted; declNode = d; }
 };
 
 class FirstPassASTVisitor : public clang::RecursiveASTVisitor<FirstPassASTVisitor>
@@ -182,6 +188,8 @@ class FirstPassASTVisitor : public clang::RecursiveASTVisitor<FirstPassASTVisito
   SSTPragmaList& getPragmas(){
     return pragmas_;
   }
+
+  DeletedNodeInfo deletedNode_;
 
  private:
   SSTPragmaList& pragmas_;
@@ -530,7 +538,7 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
 
   bool TraverseDoStmt(clang::DoStmt* S, DataRecursionQueue* queue = nullptr);
 
-  bool TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc loc);
+  bool TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc loc, bool TraverseQualifier);
 
   bool TraverseWhileStmt(clang::WhileStmt* S, DataRecursionQueue* queue = nullptr);
 
@@ -600,8 +608,6 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
   bool TraverseCXXConstructorDecl(clang::CXXConstructorDecl* D);
 
   bool TraverseCXXDestructorDecl(clang::CXXDestructorDecl* D);
-
-  clang::SourceLocation getVariableNameLocationEnd(clang::VarDecl* D);
 
   SSTPragmaList& getPragmas(){
     return pragmas_;
@@ -792,26 +798,24 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
   bool isGlobalDefinition(clang::VarDecl* D, GlobalVariableReplacement* var);
   void registerGlobalReplacement(clang::VarDecl* D, GlobalVariableReplacement* repl);
   bool setupClassStaticVarDecl(clang::VarDecl* D);
-  bool setupCGlobalVar(clang::VarDecl* D, const std::string& scopePrefix);
-  bool setupCppGlobalVar(clang::VarDecl* D, const std::string& scopePrefix);
-  bool setupFunctionStaticCpp(clang::VarDecl* D, const std::string& scopePrefix);
-  bool setupFunctionStaticC(clang::VarDecl* D, const std::string& scopePrefix);
+  bool setupGlobalVar(clang::VarDecl* D, const std::string& scopePrefix);
+  bool setupFunctionStatic(clang::VarDecl* D, const std::string& scopePrefix);
 
   template <class Lambda>
   void goIntoContext(clang::Stmt* stmt, Lambda&& l){
     stmtContexts_.push_back(stmt);
     stmtReplacements_.emplace_back();
     bool deleted = false;
-    try {
-      l();
-    } catch (StmtDeleteException& e) {
-      if (stmt != e.deleted){
-        stmtContexts_.pop_back(); //must pop back now
+    l();
+    if (deletedNode_.hasValue()){
+      if (deletedNode_.isStmtMatch(stmt)){
+        deleted = true;
+        deletedNode_.clear();
+      } else {
+        stmtContexts_.pop_back();
         stmtReplacements_.pop_back();
-        //nope! not me - pass it along
-        throw e;
+        return;
       }
-      deleted = true;
     }
     stmtContexts_.pop_back();
     if (!deleted) executeCurrentReplacements();
@@ -851,6 +855,8 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
   void replaceNullVariableConnectedContext(clang::Expr* expr, const std::string& repl);
 
   void deleteNullVariableStmt(clang::Stmt* stmt);
+  void nullifyMPIArgs(clang::CallExpr* expr,
+                      const std::vector<unsigned>& argIndices);
   void visitCollective(clang::CallExpr* expr);
   void visitReduce(clang::CallExpr* expr);
   void visitPt2Pt(clang::CallExpr* expr);
@@ -960,6 +966,7 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
   //however, sometimes a call expr must "lookahead" and delete arguments before
   //they are traversed in the natural course of AST traversal
   //note here any arguments that are modified/deleted
+  DeletedNodeInfo deletedNode_;
   std::set<clang::Expr*> deletedArgsCurrentCallExpr_;
   std::list<clang::MemberExpr*> memberAccesses_;
   std::map<clang::Stmt*,clang::Stmt*> extendedReplacements_;
@@ -1032,15 +1039,15 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
 };
 
 struct PragmaActivateGuard {
-  template <class T> //either decl/stmt
+  template <class T>
   PragmaActivateGuard(T* t, SkeletonASTVisitor* visitor, bool doVisit = true) :
-    PragmaActivateGuard(t, visitor->pragmas_, doVisit, false/*2nd pass*/)
+    PragmaActivateGuard(t, visitor->pragmas_, visitor, doVisit, false)
   {
   }
 
   template <class T>
   PragmaActivateGuard(T* t, FirstPassASTVisitor* visitor, bool doVisit = true) :
-    PragmaActivateGuard(t, visitor->pragmas_, doVisit, true/*1st pass*/)
+    PragmaActivateGuard(t, visitor->pragmas_, nullptr, doVisit, true)
   {
   }
 
@@ -1051,11 +1058,14 @@ struct PragmaActivateGuard {
   }
 
  private:
-  template <class T> //either decl/stmt
+  template <class T>
   PragmaActivateGuard(T* t,
        SSTPragmaList& pragmas,
+       SkeletonASTVisitor* skVisitor,
        bool doVisit, bool firstPass) :
     skipVisit_(false),
+    deletionOccurred_(false),
+    skeletonVisitor_(skVisitor),
     pragmas_(pragmas)
   {
     myPragmas_ = [&]{
@@ -1067,12 +1077,23 @@ struct PragmaActivateGuard {
       }
     }();
 
-    //this removes all inactivate pragmas from myPragmas_
     for (SSTPragma* prg : myPragmas_){
       if (prg->deleteOnUse){
         deletePragmaText(prg);
       }
       prg->activate(t);
+      if (CompilerGlobals::deletionSignal.hasSignal()){
+        deletionOccurred_ = true;
+        if (skeletonVisitor_){
+          if (CompilerGlobals::deletionSignal.stmtDeleted){
+            skeletonVisitor_->deletedNode_.setStmt(CompilerGlobals::deletionSignal.deletedStmt);
+          } else {
+            skeletonVisitor_->deletedNode_.setDecl(CompilerGlobals::deletionSignal.deletedDecl);
+          }
+        }
+        CompilerGlobals::deletionSignal.clear();
+        break;
+      }
       if (CompilerGlobals::pragmaConfig.makeNoChanges){
         skipVisit_ = true;
         CompilerGlobals::pragmaConfig.makeNoChanges = false;
@@ -1084,6 +1105,8 @@ struct PragmaActivateGuard {
   void deletePragmaText(SSTPragma* prg);
 
   bool skipVisit_;
+  bool deletionOccurred_;
+  SkeletonASTVisitor* skeletonVisitor_;
   std::list<SSTPragma*> myPragmas_;
   SSTPragmaList& pragmas_;
 

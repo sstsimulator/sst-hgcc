@@ -292,19 +292,11 @@ SSTPragmaHandler::handlePragmaImpl(Preprocessor& PP, Token& PragmaTok)
   configure(deleteOnUse_, PragmaTok, PP, fsp);
 }
 
-#if CLANG_VERSION_MAJOR >= 9
 void
 SSTPragmaHandler::HandlePragma(Preprocessor &PP, PragmaIntroducer  /*Introducer*/, Token& PragmaTok)
 {
   handlePragmaImpl(PP, PragmaTok);
 }
-#else
-void
-SSTPragmaHandler::HandlePragma(Preprocessor &PP, PragmaIntroducerKind  /*Introducer*/, Token& PragmaTok)
-{
-  handlePragmaImpl(PP, PragmaTok);
-}
-#endif
 
 std::map<std::string, std::list<std::string>>
 SSTPragma::getMap(SourceLocation loc, const std::list<clang::Token>& tokens)
@@ -415,13 +407,13 @@ SSTPragma::getSingleString(const std::list<Token>& tokens)
 void
 SSTDeletePragma::activate(clang::Stmt* s){
   replace(s,"");
-  throw StmtDeleteException(s);
+  CompilerGlobals::deletionSignal.signalStmtDelete(s);
 }
 
 void
 SSTDeletePragma::activate(clang::Decl* d){
   replace(d,"");
-  throw DeclDeleteException(d);
+  CompilerGlobals::deletionSignal.signalDeclDelete(d);
 }
 
 void
@@ -434,7 +426,7 @@ SSTEmptyPragma::activate(clang::Decl* d){
   if (auto* fd = llvm::dyn_cast<FunctionDecl>(d)){
     replace(fd->getBody(), sstr.str());
   }
-  throw DeclDeleteException(d);
+  CompilerGlobals::deletionSignal.signalDeclDelete(d);
 }
 
 void
@@ -486,7 +478,7 @@ SSTNewPragma::visitDeclStmt(DeclStmt *stmt)
         std::stringstream sstr;
         sstr << type << " " << name << " = nullptr;"; //don't know why - but okay, semicolon needed
         replace(stmt, sstr.str());
-        throw StmtDeleteException(stmt);
+        CompilerGlobals::deletionSignal.signalStmtDelete(stmt);
       } //boy, I really hope this doesn't allocate any memory
     }
   } else {
@@ -503,7 +495,7 @@ SSTNewPragma::visitBinaryOperator(BinaryOperator *op)
     pp.print(op->getLHS());
     pp.os << " = nullptr"; //don't know why - but okay, semicolon not needed
     replace(op, pp.os.str());
-    throw StmtDeleteException(op);
+    CompilerGlobals::deletionSignal.signalStmtDelete(op);
   } //boy, I really hope this doesn't allocate any memory
 }
 
@@ -666,7 +658,7 @@ SSTReturnPragma::activate(Stmt *s)
     errorAbort(s, "pragma return not applied to return statement");
   }
   replace(s, "return " + repl_);
-  throw StmtDeleteException(s);
+  CompilerGlobals::deletionSignal.signalStmtDelete(s);
 }
 
 void
@@ -682,7 +674,7 @@ SSTReturnPragma::activate(Decl* d)
   std::string repl = "{ return " + repl_ + "; }";
   replace(fd->getBody(), repl);
   fd->setBody(nullptr);
-  throw DeclDeleteException(d);
+  CompilerGlobals::deletionSignal.signalDeclDelete(d);
 }
 
 void
@@ -902,11 +894,11 @@ static void doActivateFieldsPragma(Decl* d, bool defaultNull,
   }
   case Decl::Typedef: {
     TypedefDecl* td = cast<TypedefDecl>(d);
-    if (td->getTypeForDecl() == nullptr){
+    if (td->getUnderlyingType().isNull()){
       internalError(d, "typedef declaration has no underlying type");
       break;
-    } else if (td->getTypeForDecl()->isStructureType()){
-      RecordDecl* rd = td->getTypeForDecl()->getAsStructureType()->getDecl();
+    } else if (td->getUnderlyingType()->isStructureType()){
+      RecordDecl* rd = td->getUnderlyingType()->getAsStructureType()->getDecl();
       addFields(rd, defaultNull, fields, prg);
       break;
     }
@@ -1141,7 +1133,8 @@ SSTStackAllocPragma::activate(Stmt *s)
   if (toFree_.size()){
     std::string repl = "ssthg_free_stack(" + toFree_ + ")";
     replace(s, repl);
-    throw StmtDeleteException(s);
+    CompilerGlobals::deletionSignal.signalStmtDelete(s);
+    return;
   } else {
     Expr* toRepl = nullptr;
     switch(s->getStmtClass()){
@@ -1167,7 +1160,7 @@ SSTStackAllocPragma::activate(Stmt *s)
 
     std::string repl = "ssthg_alloc_stack(" + stackSize_ + "," + mdataSize_ + ")";
     replace(toRepl, repl);
-    throw StmtDeleteException(s);
+    CompilerGlobals::deletionSignal.signalStmtDelete(s);
   }
 }
 

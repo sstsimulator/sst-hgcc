@@ -368,44 +368,17 @@ SkeletonASTVisitor::isGlobalDefinition(VarDecl* D, GlobalVariableReplacement* va
 }
 
 bool
-SkeletonASTVisitor::setupCGlobalVar(VarDecl* D, const std::string& scopePrefix)
-{
-  Expr* init = D->hasInit() ? getUnderlyingExpr(D->getInit()) : nullptr;
-
-  std::stringstream newVarSstr;
-  GlobalVariableReplacement var = setupGlobalReplacement(D, scopePrefix, false, false, true);
-  newVarSstr << "extern int __offset_" << var.scopeUniqueVarName << "; ";
-  if (isGlobalDefinition(D, &var)){
-    std::string initFxnName = "sst_hg_init_" + var.scopeUniqueVarName;
-    //add an init function for it
-    newVarSstr << "void " << initFxnName << "(void* ptr){";
-
-    //recreate the global variable temporarily in this function,
-    //but with globals refs correctly replaced
-    if (init){
-      newVarSstr << var.typeStr << " initer = "
-          << printWithGlobalsReplaced(init) << "; ";
-      newVarSstr << "memcpy(ptr, (void*) &initer, sizeof(initer));";
-    }
-    newVarSstr << " } ";
-    newVarSstr << "int __sizeof_" << var.scopeUniqueVarName << " = sizeof(" << var.typeStr << "); ";
-  }
-  registerGlobalReplacement(D, &var);
-  delayedInsertAfter(D, newVarSstr.str());
-
-  return true;
-}
-
-bool
-SkeletonASTVisitor::setupCppGlobalVar(VarDecl* D, const std::string& scopePrefix)
+SkeletonASTVisitor::setupGlobalVar(VarDecl* D, const std::string& scopePrefix)
 {
   Expr* init = D->hasInit() ? getUnderlyingExpr(D->getInit()) : nullptr;
   Stmt* cppCtorArgs = nullptr;
-  RecordDecl* rd = D->getType().getTypePtr()->getAsCXXRecordDecl();
+
   std::stringstream newVarSstr;
-  GlobalVariableReplacement repl = setupGlobalReplacement(D, scopePrefix, false, false, true);
-  bool isDef = isGlobalDefinition(D, &repl);
-  if (isDef){
+  GlobalVariableReplacement var = setupGlobalReplacement(D, scopePrefix, false, false, true);
+  bool isDef = isGlobalDefinition(D, &var);
+
+  if (isCxx() && isDef){
+    RecordDecl* rd = D->getType().getTypePtr()->getAsCXXRecordDecl();
     if (rd){
       cppCtorArgs = getCtor(D);
     } else if (init) {
@@ -413,49 +386,64 @@ SkeletonASTVisitor::setupCppGlobalVar(VarDecl* D, const std::string& scopePrefix
     }
   }
 
-  newVarSstr << "extern int __offset_" << repl.scopeUniqueVarName << "; ";
+  newVarSstr << "extern int __offset_" << var.scopeUniqueVarName << "; ";
+
   if (isDef){
-    newVarSstr << "int __sizeof_" << repl.scopeUniqueVarName << " = sizeof(" << repl.typeStr << ");";
-    auto pos = repl.typeStr.find("struct ");
-    if (pos != std::string::npos){
-      repl.typeStr = eraseAllStructQualifiers(repl.typeStr);
-    }
+    newVarSstr << "int __sizeof_" << var.scopeUniqueVarName
+               << " = sizeof(" << var.typeStr << "); ";
 
-    newVarSstr << "static std::function<void(void*)> sst_hg_init_" << repl.scopeUniqueVarName
-               << " = [](void* ptr){"
-                  " new (ptr) " << repl.typeStr;
-    if (cppCtorArgs){
-      switch (cppCtorArgs->getStmtClass()){
-      case Stmt::InitListExprClass:
-        newVarSstr << printWithGlobalsReplaced(cppCtorArgs);
-        break;
-      default:
-        newVarSstr << "{" << printWithGlobalsReplaced(cppCtorArgs) << "}";
-        break;
+    if (isCxx()){
+      auto pos = var.typeStr.find("struct ");
+      if (pos != std::string::npos){
+        var.typeStr = eraseAllStructQualifiers(var.typeStr);
       }
-    }
-    newVarSstr << "; };";
 
-    if (D->getStorageClass() == SC_Static){
-      newVarSstr << "static ";
+      newVarSstr << "static std::function<void(void*)> sst_hg_init_" << var.scopeUniqueVarName
+                 << " = [](void* ptr){"
+                    " new (ptr) " << var.typeStr;
+      if (cppCtorArgs){
+        switch (cppCtorArgs->getStmtClass()){
+        case Stmt::InitListExprClass:
+          newVarSstr << printWithGlobalsReplaced(cppCtorArgs);
+          break;
+        default:
+          newVarSstr << "{" << printWithGlobalsReplaced(cppCtorArgs) << "}";
+          break;
+        }
+      }
+      newVarSstr << "; };";
+
+      if (D->getStorageClass() == SC_Static){
+        newVarSstr << "static ";
+      }
+      newVarSstr << "SST::Hg::CppGlobalRegisterGuard "
+                 << D->getNameAsString() << "_sst_hg_ctor("
+                 << "__offset_" << var.scopeUniqueVarName
+                 << ", __sizeof_" << var.scopeUniqueVarName
+                 << ", " << std::boolalpha << var.threadLocal
+                 << ", \"" << D->getNameAsString() << "\""
+                 << ", std::move(sst_hg_init_" << var.scopeUniqueVarName << "));";
+    } else {
+      std::string initFxnName = "sst_hg_init_" + var.scopeUniqueVarName;
+      newVarSstr << "void " << initFxnName << "(void* ptr){";
+      if (init){
+        newVarSstr << var.typeStr << " initer = "
+            << printWithGlobalsReplaced(init) << "; ";
+        newVarSstr << "memcpy(ptr, (void*) &initer, sizeof(initer));";
+      }
+      newVarSstr << " } ";
     }
-    newVarSstr << "SST::Hg::CppGlobalRegisterGuard "
-               << D->getNameAsString() << "_sst_hg_ctor("
-               << "__offset_" << repl.scopeUniqueVarName
-               << ", __sizeof_" << repl.scopeUniqueVarName
-               << ", " << std::boolalpha << repl.threadLocal
-               << ", \"" << D->getNameAsString() << "\""
-               << ", std::move(sst_hg_init_" << repl.scopeUniqueVarName << "));";
   }
-  registerGlobalReplacement(D, &repl);
+
+  registerGlobalReplacement(D, &var);
   delayedInsertAfter(D, newVarSstr.str());
   return true;
 }
 
 bool
-SkeletonASTVisitor::setupFunctionStaticCpp(VarDecl* D, const std::string& scopePrefix)
+SkeletonASTVisitor::setupFunctionStatic(VarDecl* D, const std::string& scopePrefix)
 {
-  if (insideTemplateFxn()){
+  if (isCxx() && insideTemplateFxn()){
     internalError(D, "static function variables in template functions not yet supported");
   }
 
@@ -463,103 +451,78 @@ SkeletonASTVisitor::setupFunctionStaticCpp(VarDecl* D, const std::string& scopeP
   SourceLocation fxnStart = getStart(outerFxn);
 
   GlobalVariableReplacement var = setupGlobalReplacement(D, scopePrefix, false, true, false);
+
+  std::string externC = isCxx() ? "extern \"C\" " : "";
+  std::string nullVal = isCxx() ? "nullptr" : "0";
+
   std::string replText = "int __sizeof_" + var.scopeUniqueVarName + " = sizeof(void*); "
       " extern int __offset_" + var.scopeUniqueVarName + "; "
-      " extern \"C\" void sst_hg_init_" + var.scopeUniqueVarName + "(void* ptr){ "
+      " " + externC + "void sst_hg_init_" + var.scopeUniqueVarName + "(void* ptr){ "
       "   void** ptrptr = (void**) ptr; "
-      "   *ptrptr = nullptr; "
+      "   *ptrptr = " + nullVal + "; "
       "}";
-
   CompilerGlobals::rewriter.InsertText(fxnStart, replText, false);
 
-  std::string initializer;
-  if (var.arrayInfo){
-    //create a temp that is the original object initialzed
-    //the *x = expr syntax is not valid for certain initializations
-    initializer = "sst_hg_" + var.scopeUniqueVarName + "= ("
-        + var.arrayInfo->typedefName + "*) new char[sizeof(" + var.typeStr + ")];";
-    if (D->hasInit()){
-      initializer += var.arrayInfo->typedefName + " initer_" + var.scopeUniqueVarName
-                    + "=" + printWithGlobalsReplaced(D->getInit()) + ";";
-      //then memcopy from it into the original
-      initializer += " memcpy(sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
-                  + ", sizeof(" + var.arrayInfo->typedefName + "));";
-    }
-  } else {
-    std::string ctor;
-    if (D->hasInit()){
-      ctor = printWithGlobalsReplaced(D->getInit());
-      switch(D->getInit()->getStmtClass()){
-       case Stmt::InitListExprClass:
-       case Stmt::CXXConstructExprClass:
-         break;
-       default:
-        ctor = "{ " + ctor + " }";
-        break;
+  std::string initText =
+   "void** ptr_sst_hg_" + var.scopeUniqueVarName
+    + " = ((void**)(sst_hg_global_data + __offset_" + var.scopeUniqueVarName + "));"
+    + var.typeStr + "* sst_hg_" + var.scopeUniqueVarName + " = (" + var.typeStr
+    + "*)(*ptr_sst_hg_" + var.scopeUniqueVarName + "); "
+   "if (sst_hg_" + var.scopeUniqueVarName + " == " + nullVal + "){ ";
+
+  if (isCxx()){
+    std::string initializer;
+    if (var.arrayInfo){
+      //the *x = expr syntax is not valid for certain initializations
+      initializer = "sst_hg_" + var.scopeUniqueVarName + "= ("
+          + var.arrayInfo->typedefName + "*) new char[sizeof(" + var.typeStr + ")];";
+      if (D->hasInit()){
+        initializer += var.arrayInfo->typedefName + " initer_" + var.scopeUniqueVarName
+                      + "=" + printWithGlobalsReplaced(D->getInit()) + ";";
+        initializer += " memcpy(sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
+                    + ", sizeof(" + var.arrayInfo->typedefName + "));";
       }
     } else {
-      ctor = "{}";
+      std::string ctor;
+      if (D->hasInit()){
+        ctor = printWithGlobalsReplaced(D->getInit());
+        switch(D->getInit()->getStmtClass()){
+         case Stmt::InitListExprClass:
+         case Stmt::CXXConstructExprClass:
+           break;
+         default:
+          ctor = "{ " + ctor + " }";
+          break;
+        }
+      } else {
+        ctor = "{}";
+      }
+      initializer = "sst_hg_" + var.scopeUniqueVarName + "= new " + var.typeStr + ctor + ";";
     }
-    initializer = "sst_hg_" + var.scopeUniqueVarName + "= new " + var.typeStr + ctor + ";";
+    initText += initializer;
+  } else {
+    initText += "  sst_hg_" + var.scopeUniqueVarName + " = (" + var.typeStr
+             + "*) malloc(sizeof(" + var.typeStr + ")); ";
   }
 
+  initText += "  *ptr_sst_hg_" + var.scopeUniqueVarName
+           + " = sst_hg_" + var.scopeUniqueVarName + "; }";
 
-
-  std::string initText =
-   "void** ptr_sst_hg_" + var.scopeUniqueVarName
-    + " = ((void**)(sst_hg_global_data + __offset_" + var.scopeUniqueVarName + "));"
-    + var.typeStr + "* sst_hg_" + var.scopeUniqueVarName + " = (" + var.typeStr
-    + "*)(*ptr_sst_hg_" + var.scopeUniqueVarName + "); "
-   "if (sst_hg_" + var.scopeUniqueVarName + " == nullptr){ "
-    + initializer +
-   "  *ptr_sst_hg_" + var.scopeUniqueVarName + " = sst_hg_" + var.scopeUniqueVarName + "; "
-   "}";
-  delayedInsertAfter(D, initText);
-  registerGlobalReplacement(D, &var);
-  //make sure this is included for the function
-  globalsTouched_.back().insert(mainDecl(D));
-  return true;
-}
-
-bool
-SkeletonASTVisitor::setupFunctionStaticC(VarDecl* D, const std::string& scopePrefix)
-{
-  FunctionDecl* outerFxn = CompilerGlobals::astContextLists.enclosingFunctionDecls.front();
-  SourceLocation fxnStart = getStart(outerFxn);
-
-  GlobalVariableReplacement var = setupGlobalReplacement(D, scopePrefix, false, true, false);
-  std::string replText = "int __sizeof_" + var.scopeUniqueVarName + " = sizeof(void*); "
-      " extern int __offset_" + var.scopeUniqueVarName + "; "
-      " void sst_hg_init_" + var.scopeUniqueVarName + "(void* ptr){ "
-      "   void** ptrptr = (void**) ptr; "
-      "   *ptrptr = 0; "
-      "}";
-  CompilerGlobals::rewriter.InsertText(fxnStart, replText, false);
-
-  std::string initText =
-   "void** ptr_sst_hg_" + var.scopeUniqueVarName
-    + " = ((void**)(sst_hg_global_data + __offset_" + var.scopeUniqueVarName + "));"
-    + var.typeStr + "* sst_hg_" + var.scopeUniqueVarName + " = (" + var.typeStr
-    + "*)(*ptr_sst_hg_" + var.scopeUniqueVarName + "); "
-   "if (sst_hg_" + var.scopeUniqueVarName + " == 0){ "
-   "  sst_hg_" + var.scopeUniqueVarName + " = (" + var.typeStr + "*) malloc(sizeof(" + var.typeStr + ")); "
-   "  *ptr_sst_hg_" + var.scopeUniqueVarName + " = sstgh_" + var.scopeUniqueVarName + "; }";
-  if (var.arrayInfo && D->hasInit()){
-    //create a temp that is the original object initialzed
-    //the *x = expr syntax is not valid for certain initializations
-    initText += var.arrayInfo->typedefName + " initer_" + var.scopeUniqueVarName
-                  + "=" + printWithGlobalsReplaced(D->getInit()) + ";";
-    //then memcopy from it into the original
-    initText += " memcpy(*ptr_sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
-                + ", sizeof(" + var.arrayInfo->typedefName + "));";
-  } else if (D->hasInit()){
-    initText += "*sst_hg_" + var.scopeUniqueVarName + " = ("
-        + var.typeStr + ") " + printWithGlobalsReplaced(D->getInit()) + ";";
+  if (!isCxx()){
+    if (var.arrayInfo && D->hasInit()){
+      //the *x = expr syntax is not valid for certain initializations
+      initText += var.arrayInfo->typedefName + " initer_" + var.scopeUniqueVarName
+                    + "=" + printWithGlobalsReplaced(D->getInit()) + ";";
+      initText += " memcpy(*ptr_sst_hg_" + var.scopeUniqueVarName + ", initer_" + var.scopeUniqueVarName
+                  + ", sizeof(" + var.arrayInfo->typedefName + "));";
+    } else if (D->hasInit()){
+      initText += "*sst_hg_" + var.scopeUniqueVarName + " = ("
+          + var.typeStr + ") " + printWithGlobalsReplaced(D->getInit()) + ";";
+    }
   }
 
   delayedInsertAfter(D, initText);
   registerGlobalReplacement(D, &var);
-  //make sure this is included for the function
   globalsTouched_.back().insert(mainDecl(D));
   return true;
 }
@@ -583,21 +546,13 @@ bool
 SkeletonASTVisitor::checkStaticFileVar(VarDecl* D)
 {
   std::string prefix = currentNs_->filePrefix(getStart(D));
-  if (isCxx()){
-    return setupCppGlobalVar(D, prefix);
-  } else {
-    return setupCGlobalVar(D, prefix);
-  }
+  return setupGlobalVar(D, prefix);
 }
 
 bool
 SkeletonASTVisitor::checkGlobalVar(VarDecl* D)
 {
-  if (isCxx()){
-    return setupCppGlobalVar(D, "");
-  } else {
-    return setupCGlobalVar(D, "");
-  }
+  return setupGlobalVar(D, "");
 }
 
 bool
@@ -618,11 +573,7 @@ SkeletonASTVisitor::checkStaticFxnVar(VarDecl *D)
 
   std::string scope_prefix = currentNs_->filePrefix(getStart(D)) + prefix_sstr.str();
 
-  if (isCxx()){
-    return setupFunctionStaticCpp(D, scope_prefix);
-  } else {
-    return setupFunctionStaticC(D, scope_prefix);
-  }
+  return setupFunctionStatic(D, scope_prefix);
 }
 
 bool

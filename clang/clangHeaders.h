@@ -86,11 +86,7 @@ Questions? Contact sst-macro-help@sandia.gov
   OPERATOR(Mul) OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub)        \
       OPERATOR(Shl) OPERATOR(Shr) OPERATOR(And) OPERATOR(Or) OPERATOR(Xor)
 
-#if CLANG_VERSION_MAJOR <= 5
-#define GetTypeString(...) clang::QualType::getAsString(__VA_ARGS__)
-#else
 #define GetTypeString(...) clang::QualType::getAsString(__VA_ARGS__, Printing::policy)
-#endif
 
 struct Printing
 {
@@ -120,35 +116,19 @@ static inline clang::SourceLocation getStart(const clang::Stmt* s){
   if(s == nullptr){
     return clang::SourceLocation();
   }
-#if CLANG_VERSION_MAJOR >= 8
   return s->getBeginLoc();
-#else
-  return s->getLocStart();
-#endif
 }
 
 static inline clang::SourceLocation getStart(const clang::Decl* decl){
-#if CLANG_VERSION_MAJOR >= 8
   return decl->getBeginLoc();
-#else
-  return decl->getLocStart();
-#endif
 }
 
 static inline clang::SourceLocation getEnd(const clang::Decl* decl){
-#if CLANG_VERSION_MAJOR >= 8
   return decl->getEndLoc();
-#else
-  return decl->getLocEnd();
-#endif
 }
 
 static inline clang::SourceLocation getEnd(const clang::Stmt* s){
-#if CLANG_VERSION_MAJOR >= 8
   return s->getEndLoc();
-#else
-  return s->getLocEnd();
-#endif
 }
 
 #endif // CLANGHEADERS_H

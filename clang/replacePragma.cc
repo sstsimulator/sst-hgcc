@@ -60,22 +60,22 @@ class ReplacementPragmaVisitor : public RecursiveASTVisitor<ReplacementPragmaVis
   }
 
   bool start(Stmt* s){
-    try {
-      return Parent::TraverseStmt(s);
-    } catch (StmtDeleteException& e) {
+    Parent::TraverseStmt(s);
+    if (deletedExpr_) {
       //we traversed something other than a compound stmt or declstmt
-      exceptions_.emplace_back(e.deleted);
+      pendingDeletion_ = deletedExpr_;
+      deletedExpr_ = nullptr;
     }
     return true;
   }
 
   bool TraverseCompoundStmt(CompoundStmt* stmt, DataRecursionQueue* = nullptr){
     for (auto iter = stmt->body_begin(); iter != stmt->body_end(); ++iter){
-      try {
-        Stmt* s = *iter;
-        TraverseStmt(s);
-      } catch (StmtDeleteException& e) {
+      Stmt* s = *iter;
+      TraverseStmt(s);
+      if (deletedExpr_) {
         *iter = zeroExpr(getStart(stmt));
+        deletedExpr_ = nullptr;
       }
     }
     return true;
@@ -112,16 +112,15 @@ class ReplacementPragmaVisitor : public RecursiveASTVisitor<ReplacementPragmaVis
   bool TraverseArraySubscriptExpr(ArraySubscriptExpr* expr, DataRecursionQueue* queue = nullptr){
     if (matchingDeclRef(expr->getBase())){
       replaced_.insert(expr);
-      throw StmtDeleteException(expr);
+      deletedExpr_ = expr;
       return true;
     } else {
-      try {
-        Parent::TraverseArraySubscriptExpr(expr);
-      } catch (StmtDeleteException& e) {
+      Parent::TraverseArraySubscriptExpr(expr);
+      if (deletedExpr_) {
         //chained subscripts need to propagate up
-        replaced_.erase(cast<Expr>(e.deleted));
+        replaced_.erase(cast<Expr>(deletedExpr_));
         replaced_.insert(expr);
-        throw StmtDeleteException(expr);
+        deletedExpr_ = expr;
       }
       return true;
     }
@@ -130,7 +129,7 @@ class ReplacementPragmaVisitor : public RecursiveASTVisitor<ReplacementPragmaVis
   bool TraverseCallExpr(CallExpr* expr, DataRecursionQueue* queue = nullptr){
     if (matchingDeclRef(expr->getCallee())){
       replaced_.insert(expr);
-      throw StmtDeleteException(expr);
+      deletedExpr_ = expr;
       return true;
     } else {
       return Parent::TraverseCallExpr(expr);
@@ -141,16 +140,19 @@ class ReplacementPragmaVisitor : public RecursiveASTVisitor<ReplacementPragmaVis
     return replaced_;
   }
 
-  void maybeThrowException(){
-    if (!exceptions_.empty()){
-      throw exceptions_[0];
-    }
+  bool hasPendingDeletion() const {
+    return pendingDeletion_ != nullptr;
+  }
+
+  Stmt* getPendingDeletion() const {
+    return pendingDeletion_;
   }
 
  private:
   std::string matchText_;
   std::set<const Expr*> replaced_;
-  std::vector<StmtDeleteException> exceptions_;
+  Expr* deletedExpr_ = nullptr;
+  Stmt* pendingDeletion_ = nullptr;
 
 };
 
@@ -167,7 +169,9 @@ SSTReplacePragma::activate(Stmt *s)
   //depending on the case, we may need to notify the parent AST node
   //that a deletion or something happened that should void further
   //visits to this node
-  visitor.maybeThrowException();
+  if (visitor.hasPendingDeletion()) {
+    CompilerGlobals::deletionSignal.signalStmtDelete(visitor.getPendingDeletion());
+  }
 }
 
 
@@ -201,9 +205,9 @@ void
 SSTReplacePragma::activateVarDecl(VarDecl *d)
 {
   if (d->hasInit()){
-    try {
-      activate(d->getInit());
-    } catch (StmtDeleteException& e) {
+    activate(d->getInit());
+    if (CompilerGlobals::deletionSignal.hasSignal()) {
+      CompilerGlobals::deletionSignal.clear();
       d->setInit(nullptr);
     }
   }
@@ -243,7 +247,7 @@ void
 SSTInsteadPragma::activate(Stmt *s)
 {
   replace(s, repl_);
-  throw StmtDeleteException(s);
+  CompilerGlobals::deletionSignal.signalStmtDelete(s);
 }
 
 void
@@ -262,7 +266,7 @@ SSTInitPragma::activateDeclStmt(DeclStmt* s)
   }
   replace(vd->getInit(), init_);
   vd->setInit(nullptr);
-  throw StmtDeleteException(s);
+  CompilerGlobals::deletionSignal.signalStmtDelete(s);
 }
 
 std::string

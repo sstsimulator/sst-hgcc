@@ -126,19 +126,7 @@ void warn(const clang::Decl* decl, const std::string& error);
 void insertBefore(const clang::Stmt* s, const std::string& text);
 void insertAfter(const clang::Stmt* s, const std::string& text);
 
-#if CLANG_VERSION_MAJOR < 10
-inline bool operator<=(const clang::SourceLocation &LHS, const clang::SourceLocation &RHS) {
-  return LHS < RHS || LHS == RHS;
-}
 
-inline bool operator>(const clang::SourceLocation &LHS, const clang::SourceLocation &RHS) {
-  return !(LHS < RHS) && !(LHS == RHS);
-}
-
-inline bool operator>=(const clang::SourceLocation &LHS, const clang::SourceLocation &RHS) {
-  return !(LHS < RHS);
-}
-#endif
 
 std::string makeCxxName(const std::string& name);
 

@@ -273,8 +273,6 @@ ComputeVisitor::visitBodyParenExpr(ParenExpr* expr, Loop::Body& body)
   addOperations(expr->getSubExpr(), body);
 }
 
-#define heisenbug fprintf(stderr, "%s:%d\n", __FILE__, __LINE__); fflush(stdout)
-
 void
 ComputeVisitor::visitBodyArraySubscriptExpr(ArraySubscriptExpr* expr, Loop::Body& body, bool isLHS)
 {
