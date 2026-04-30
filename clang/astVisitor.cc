@@ -1327,7 +1327,8 @@ SkeletonASTVisitor::TraverseLambdaExpr(LambdaExpr* expr)
 bool
 SkeletonASTVisitor::doTraverseLambda(LambdaExpr* expr)
 {
-  if (isInSystemHeader(expr->getBeginLoc())){
+  // Do not skeletonize captures from libc++/Clang system-header lambdas.
+  if (isInSystemHeader(getStart(expr))){
     return RecursiveASTVisitor<SkeletonASTVisitor>::TraverseLambdaExpr(expr);
   }
   switch (expr->getCaptureDefault()){
