@@ -482,7 +482,7 @@ SkeletonASTVisitor::VisitCXXNewExpr(CXXNewExpr * /*expr*/)
 }
 
 bool
-SkeletonASTVisitor::TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc  /*loc*/)
+SkeletonASTVisitor::TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc  /*loc*/, bool  /*TraverseQualifier*/)
 {
   return true;
 }

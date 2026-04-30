@@ -530,7 +530,7 @@ class SkeletonASTVisitor : public clang::RecursiveASTVisitor<SkeletonASTVisitor>
 
   bool TraverseDoStmt(clang::DoStmt* S, DataRecursionQueue* queue = nullptr);
 
-  bool TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc loc);
+  bool TraverseDecltypeTypeLoc(clang::DecltypeTypeLoc loc, bool TraverseQualifier);
 
   bool TraverseWhileStmt(clang::WhileStmt* S, DataRecursionQueue* queue = nullptr);
 
