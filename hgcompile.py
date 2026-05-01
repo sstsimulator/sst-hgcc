@@ -362,14 +362,8 @@ def addPreprocess(
     use_clang_cpp_for_e=False,
     clang_exe_for_preprocess=None,
     clang_cc_for_linux_preprocess=None,
+    stdlib_flag="libstdc++",
 ):
-  """use_clang_cpp_for_e: run clang++ -E so libstdc++ expands for Clang (__make_integer_seq),
-  not g++ (__integer_pack), which ssthg_clang cannot parse.
-
-  clang_cc_for_linux_preprocess: on Linux C, gcc -E expands glibc with __GNUC__ from gcc,
-  embedding __malloc__(deallocator, n) into the .ii file; ssthg_clang then cannot parse
-  that text. Use clang -fgnuc-version=10 -E so the preprocessor output matches what Clang
-  can parse (see addSrc2SrcCompile)."""
   if use_clang_cpp_for_e and ctx.typ == "c++":
     if clang_exe_for_preprocess:
       clang_pp = clang_exe_for_preprocess
@@ -382,7 +376,7 @@ def addPreprocess(
         scan.extend(shlex.split(str(cf)))
       clang_pp = _clang_cxx_resolve_for_libstdc_host(ctx, scan)
     if clang_pp:
-      ppArgs = [clang_pp, "-stdlib=libstdc++"]
+      ppArgs = [clang_pp, "-stdlib=%s" % stdlib_flag]
     else:
       ppArgs = [ctx.compiler]
   elif clang_cc_for_linux_preprocess:
@@ -519,8 +513,7 @@ def _build_src2src_plan(ctx, sourceFile, args, _hv,
   if ctx.typ != "c++" and sys.platform.startswith("linux"):
     p.clang_cc_linux = _clang_cc_resolve_for_linux_preprocess(ctx, pre_tokens)
   p.clang_cxx_bin = _clang_cxx_resolve_for_libstdc_host(ctx, pre_tokens)
-  p.use_clangxx_host = (
-      (not p.use_libcxx) and ctx.typ == "c++" and bool(p.clang_cxx_bin))
+  p.use_clangxx_host = ctx.typ == "c++" and bool(p.clang_cxx_bin)
   return p
 
 
@@ -528,6 +521,25 @@ def _normalize_default_include_paths(defaultIncludePaths):
   """Abspath-normalize each ':'-separated entry."""
   rawPaths = defaultIncludePaths.split(":")
   return ":".join(os.path.abspath(p) for p in rawPaths)
+
+
+def _extra_system_includes_for_clang_dir(clang_dir):
+  if not clang_dir:
+    return []
+  candidates = [
+      os.path.join(clang_dir, "include", "c++", "v1"),
+      os.path.join(clang_dir, "include"),
+  ]
+  lib_clang = os.path.join(clang_dir, "lib", "clang")
+  if os.path.isdir(lib_clang):
+    try:
+      for entry in sorted(os.listdir(lib_clang)):
+        cand = os.path.join(lib_clang, entry, "include")
+        if os.path.isdir(cand):
+          candidates.append(cand)
+    except OSError:
+      pass
+  return [p for p in candidates if os.path.isdir(p)]
 
 
 def _build_ssthg_clang_cmd(ctx, plan, prefix, ppTmpFile, haveFloat128):
@@ -582,7 +594,8 @@ def _build_ssthg_clang_cmd(ctx, plan, prefix, ppTmpFile, haveFloat128):
 def _build_host_obj_cmd(ctx, args, plan, srcRepl, tmpTarget):
   """Return argv to compile the rewritten sst.pp.* back to an object."""
   if plan.use_clangxx_host:
-    cmd = [plan.clang_cxx_bin, "-stdlib=libstdc++"]
+    cmd = [plan.clang_cxx_bin,
+           "-stdlib=libc++" if plan.use_libcxx else "-stdlib=libstdc++"]
   else:
     cmd = [ctx.compiler]
   cmd.extend(map(lambda x: "-D%s" % x, ctx.defines))
@@ -608,7 +621,7 @@ def _build_cxx_init_cmd(ctx, args, plan, prefix, cxxInitSrcFile, cxxInitObjFile)
   if plan.use_clangxx_host:
     cmd = [
         plan.clang_cxx_bin,
-        "-stdlib=libstdc++",
+        "-stdlib=libc++" if plan.use_libcxx else "-stdlib=libstdc++",
         "-o",
         cxxInitObjFile,
         "-I%s/include" % prefix,
@@ -674,16 +687,21 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
     addPreprocess(
         ctx, sourceFile, ppTmpFile, args, cmds,
         compiler_flags=plan.host_cxx_flags_for_obj,
-        use_clang_cpp_for_e=(not plan.use_libcxx) and ctx.typ == "c++",
+        use_clang_cpp_for_e=ctx.typ == "c++",
         clang_exe_for_preprocess=plan.clang_cxx_bin,
         clang_cc_for_linux_preprocess=plan.clang_cc_linux,
+        stdlib_flag="libc++" if plan.use_libcxx else "libstdc++",
     )
 
   # System include roots for isInSystemHeader(). Use SSTHG_SYSTEM_INCLUDES so
   # the subprocess does not need --system-includes (llvm::cl + CommonOptionsParser
   # rejects that flag on some Apple/LLVM-linked ssthg_clang builds).
-  os.environ["SSTHG_SYSTEM_INCLUDES"] = \
-      _normalize_default_include_paths(defaultIncludePaths)
+  _sys_paths = _normalize_default_include_paths(defaultIncludePaths)
+  _extra_paths = _extra_system_includes_for_clang_dir(
+      getattr(_hv, "clangDir", None))
+  if _extra_paths:
+    _sys_paths = ":".join(_extra_paths) + (":" + _sys_paths if _sys_paths else "")
+  os.environ["SSTHG_SYSTEM_INCLUDES"] = _sys_paths
 
   srcRepl = addPrefixAndRebase("sst.pp.", sourceFile, objBaseFolder)
   cxxInitSrcFile = \

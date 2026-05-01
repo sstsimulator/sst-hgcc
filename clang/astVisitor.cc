@@ -1398,6 +1398,11 @@ SkeletonASTVisitor::doTraverseLambda(LambdaExpr* expr)
             case Stmt::CallExprClass:
             case Stmt::MemberExprClass:
             case Stmt::CXXBoolLiteralExprClass:
+            case Stmt::IntegerLiteralClass:
+            case Stmt::FloatingLiteralClass:
+            case Stmt::CharacterLiteralClass:
+            case Stmt::StringLiteralClass:
+            case Stmt::CXXNullPtrLiteralExprClass:
             case Stmt::ExprWithCleanupsClass:
             case Stmt::CXXMemberCallExprClass:
               cont = false;
