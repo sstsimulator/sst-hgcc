@@ -397,16 +397,16 @@ def addPreprocess(
     ppArgs.append("-O%s" % args.O)
   cmds.append([outputFile,ppArgs,[]]) #pipe file, no extra temps
 
-def addEmitLlvm(ctx, sourceFile, outputFile, args, cmds):
-  cmdArr = [
-    ctx.compiler,
-    "-emit-llvm",
-    "-S",
-    "--no-integrated-cpp",
-    sourceFile,
-    "-o",
-    outputFile
-  ]
+def addEmitLlvm(ctx, sourceFile, outputFile, args, cmds, plan=None):
+  if plan is not None and plan.use_clangxx_host:
+    cmdArr = [plan.clang_cxx_bin,
+              "-stdlib=libc++" if plan.use_libcxx else "-stdlib=libstdc++"]
+  else:
+    cmdArr = [ctx.compiler]
+  cmdArr.extend(["-emit-llvm", "-S"])
+  if plan is None or not plan.use_clangxx_host:
+    cmdArr.append("--no-integrated-cpp")
+  cmdArr.extend([sourceFile, "-o", outputFile])
   if args.O:
     cmds.append("-O%s" % args.O)
   cmds.append([None,cmdArr,[outputFile]])
@@ -428,14 +428,18 @@ def addLlvmOptPass(ctx, llFile, llvmPass, args, cmds):
   ]
   cmds.append([None,cmdArr,[]])
 
-def addLlvmCompile(ctx, llFile, objFile, args, cmds):
-  cmdArr = [
-    ctx.compiler,
+def addLlvmCompile(ctx, llFile, objFile, args, cmds, plan=None):
+  if plan is not None and plan.use_clangxx_host:
+    cmdArr = [plan.clang_cxx_bin,
+              "-stdlib=libc++" if plan.use_libcxx else "-stdlib=libstdc++"]
+  else:
+    cmdArr = [ctx.compiler]
+  cmdArr.extend([
     "-o",
     objFile,
     "-c",
     llFile,
-  ]
+  ])
   cmdArr.extend(ctx.compilerFlags)
   cmds.append([None,cmdArr,[objFile]])
 
@@ -718,10 +722,10 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
 
   if llvmPasses:
     llvmFile = swapSuffix("ll", tmpTarget)
-    addEmitLlvm(ctx, srcRepl, llvmFile, args, cmds)
+    addEmitLlvm(ctx, srcRepl, llvmFile, args, cmds, plan=plan)
     for llvmPass in llvmPasses:
       addLlvmOptPass(ctx, llvmFile, llvmPass, args, cmds)
-    addLlvmCompile(ctx, llvmFile, tmpTarget, args, cmds)
+    addLlvmCompile(ctx, llvmFile, tmpTarget, args, cmds, plan=plan)
   else:
     hostCmd = _build_host_obj_cmd(ctx, args, plan, srcRepl, tmpTarget)
     cmds.append([None, hostCmd, [tmpTarget]])
