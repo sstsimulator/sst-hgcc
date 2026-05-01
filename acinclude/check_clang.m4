@@ -83,6 +83,7 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
     AC_SUBST([CLANG_LIBTOOLING_CXX_RESOURCE_FLAGS], [""])
     AC_SUBST([USE_LIBCXX_FOR_AST], [False])
     AC_SUBST([AST_GNUXX_REMAP], [False])
+    AC_SUBST([CLANG_MAJOR_VERSION], [0])
   else
     AM_CONDITIONAL(HAVE_CLANG, true)
     offset=`$pyexe $srcdir/config_tools/get_offsetof_macro $CXX`
@@ -102,6 +103,7 @@ AC_DEFUN([CHECK_CLANG_LLVM], [
 
     clang_version=`$clang/bin/clang --version | head -n 1 | cut -d ' ' -f 3`
     clang_major_version=`echo $clang_version | cut -d '.' -f 1`
+    AC_SUBST([CLANG_MAJOR_VERSION], [${clang_major_version:-0}])
     if test "$clang_major_version" = "9"; then
       AM_CONDITIONAL(CLANG_NEED_LIBCPP,true)
     else

@@ -546,7 +546,8 @@ def _extra_system_includes_for_clang_dir(clang_dir):
   return [p for p in candidates if os.path.isdir(p)]
 
 
-def _build_ssthg_clang_cmd(ctx, plan, prefix, ppTmpFile, haveFloat128):
+def _build_ssthg_clang_cmd(ctx, plan, prefix, ppTmpFile, haveFloat128,
+                           clangMajorVersion=0):
   """Return argv for the ssthg_clang invocation that emits sst.pp.* / sstGlobals.*."""
   clangDeglobal = os.path.join(prefix, "bin", "ssthg_clang")
   cmd = [clangDeglobal, ppTmpFile]
@@ -584,12 +585,12 @@ def _build_ssthg_clang_cmd(ctx, plan, prefix, ppTmpFile, haveFloat128):
       cmd.append("-D_Float32x=double")
       cmd.append("-D_Float64x=long double")
       cmd.append("-D_Float128=long double")
-  # TODO(llvm18): __builtin_clzg / __builtin_ctzg were added in LLVM 18. Once
-  # ssthg_clang is built against LLVM 18+, gate these -D stubs behind a
-  # Clang-version probe (or a configure check) so real uses of the builtins
-  # are not silently replaced with the literal 0.
-  cmd.append("-D__builtin_clzg(...)=0")
-  cmd.append("-D__builtin_ctzg(...)=0")
+  # __builtin_clzg / __builtin_ctzg were added in LLVM 18. On older Clang we
+  # stub them to literal 0 so libc++ <bit> still parses; on >= 18 we must NOT
+  # define the macro or real call sites get silently rewritten to 0.
+  if clangMajorVersion and clangMajorVersion < 18:
+    cmd.append("-D__builtin_clzg(...)=0")
+    cmd.append("-D__builtin_ctzg(...)=0")
 
   cmd.extend(plan.ast_resource_tokens)
   return cmd
@@ -679,6 +680,7 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
   from hgccvars import clangLibtoolingCxxFlagsStr, clangLibtoolingCFlagsStr
   from hgccvars import haveFloat128
   from hgccvars import sstStdFlag
+  clangMajorVersion = getattr(_hv, "clangMajorVersion", 0) or 0
 
   plan = _build_src2src_plan(
       ctx, sourceFile, args, _hv,
@@ -712,7 +714,8 @@ def addSrc2SrcCompile(ctx, sourceFile, outputFile, args, cmds):
       addPrefixAndRebase("sstGlobals.pp.", sourceFile, objBaseFolder) + ".cpp"
 
   clangCmdArr = _build_ssthg_clang_cmd(
-      ctx, plan, prefix, ppTmpFile, haveFloat128)
+      ctx, plan, prefix, ppTmpFile, haveFloat128,
+      clangMajorVersion=clangMajorVersion)
   if not ctx.src2srcDebug:
     # None -> don't pipe output anywhere; clangCmdArr emits sst.pp.* + sstGlobals.*
     cmds.append([None, clangCmdArr, [ppTmpFile, srcRepl, cxxInitSrcFile]])
