@@ -57,6 +57,26 @@ def _hgcc_bool_attr(mod, name, default=False):
   return bool(v)
 
 
+_CLANGXX_FALLBACK_WARNED = False
+
+def _warn_clangxx_fallback(where):
+  """Once-per-process stderr warning when a C++ step falls back to ctx.compiler
+  instead of the LLVM clang++ that ssthg_clang was built against. Mismatch
+  between -E / ssthg_clang / host -c produces 'no template named __builtin_*'
+  errors that look mysterious; this points at the actual cause."""
+  global _CLANGXX_FALLBACK_WARNED
+  if _CLANGXX_FALLBACK_WARNED:
+    return
+  _CLANGXX_FALLBACK_WARNED = True
+  sys.stderr.write(
+      "hgcc: warning: %s could not resolve clang++ from hgccvars.clangDir or "
+      "compile_commands -I flags; falling back to ctx.compiler. ssthg_clang and "
+      "the host compile may now disagree on builtins (e.g. __builtin_common_type, "
+      "__is_referenceable). Re-configure sst-hgcc with "
+      "--with-clang=<llvm-install> matching the compiler you intend to use.\n"
+      % where)
+
+
 def _argv_drop_compiler_leader(argv):
   """Drop compile_commands argv[0] driver name."""
   if not argv:
@@ -378,6 +398,7 @@ def addPreprocess(
     if clang_pp:
       ppArgs = [clang_pp, "-stdlib=%s" % stdlib_flag]
     else:
+      _warn_clangxx_fallback("addPreprocess (-E)")
       ppArgs = [ctx.compiler]
   elif clang_cc_for_linux_preprocess:
     ppArgs = [clang_cc_for_linux_preprocess, "-fgnuc-version=10"]
@@ -602,6 +623,8 @@ def _build_host_obj_cmd(ctx, args, plan, srcRepl, tmpTarget):
     cmd = [plan.clang_cxx_bin,
            "-stdlib=libc++" if plan.use_libcxx else "-stdlib=libstdc++"]
   else:
+    if ctx.typ == "c++":
+      _warn_clangxx_fallback("_build_host_obj_cmd (host -c)")
     cmd = [ctx.compiler]
   cmd.extend(map(lambda x: "-D%s" % x, ctx.defines))
   cmd.extend(map(lambda x: "-D%s" % x, getattr(args, "D", [])))
@@ -635,6 +658,8 @@ def _build_cxx_init_cmd(ctx, args, plan, prefix, cxxInitSrcFile, cxxInitObjFile)
         cxxInitSrcFile,
     ]
   else:
+    if ctx.typ == "c++":
+      _warn_clangxx_fallback("_build_cxx_init_cmd (sstGlobals -c)")
     cmd = [
         ctx.cxx,
         "-o",
