@@ -58,6 +58,25 @@ def _hgcc_bool_attr(mod, name, default=False):
 
 
 _CLANGXX_FALLBACK_WARNED = False
+_STD_FLOOR_WARNED = False
+
+def _warn_std_floor(stdlib_name, old_std, new_std):
+  """Once-per-process stderr warning when the AST -std= floor bumps the user's
+  requested dialect because the resolved C++ standard library headers require
+  it. This is a real semantic change: the same -std= is forced on ssthg_clang
+  parse, clang++ -E, and the host -c of the rewritten output."""
+  global _STD_FLOOR_WARNED
+  if _STD_FLOOR_WARNED:
+    return
+  _STD_FLOOR_WARNED = True
+  sys.stderr.write(
+      "hgcc: warning: bumping %s to %s because %s headers require it. "
+      "The entire src2src pipeline (ssthg_clang parse, clang++ -E, host -c of "
+      "the rewritten output) will run at %s, not the originally requested "
+      "dialect. To silence, set STD_CXXFLAGS / --with-std / hg++ -std= to %s "
+      "or newer.\n"
+      % (old_std, new_std, stdlib_name, new_std, new_std))
+
 
 def _warn_clangxx_fallback(where):
   """Once-per-process stderr warning when a C++ step falls back to ctx.compiler
@@ -272,13 +291,49 @@ def apply_ast_libstdcxx_cpp14_floor(argv, enabled):
   if not enabled:
     return argv
   out = []
+  bumped = None
   for a in argv:
     if a in ("-std=c++11", "-std=c++0x"):
       out.append("-std=c++14")
+      if bumped is None:
+        bumped = (a, "-std=c++14")
     elif a in ("-std=gnu++11", "-std=gnu++0x"):
       out.append("-std=gnu++14")
+      if bumped is None:
+        bumped = (a, "-std=gnu++14")
     else:
       out.append(a)
+  if bumped:
+    _warn_std_floor("libstdc++", bumped[0], bumped[1])
+  return out
+
+
+def apply_ast_libcxx_cpp17_floor(argv, enabled):
+  """Raise dialect to C++17 for ssthg_clang parse when using libc++.
+
+  libc++ shipping with LLVM 18+ assumes C++17 in many headers (concepts,
+  __builtin_common_type, etc). A user passing -std=c++14 with libc++ would
+  otherwise produce parse errors inside libc++ itself.
+  """
+  if not enabled:
+    return argv
+  pre17_cxx = ("-std=c++11", "-std=c++0x", "-std=c++14", "-std=c++1y")
+  pre17_gnu = ("-std=gnu++11", "-std=gnu++0x", "-std=gnu++14", "-std=gnu++1y")
+  out = []
+  bumped = None
+  for a in argv:
+    if a in pre17_cxx:
+      out.append("-std=c++17")
+      if bumped is None:
+        bumped = (a, "-std=c++17")
+    elif a in pre17_gnu:
+      out.append("-std=gnu++17")
+      if bumped is None:
+        bumped = (a, "-std=gnu++17")
+    else:
+      out.append(a)
+  if bumped:
+    _warn_std_floor("libc++", bumped[0], bumped[1])
   return out
 
 
@@ -512,6 +567,8 @@ def _build_src2src_plan(ctx, sourceFile, args, _hv,
       base_argv = [sstStdFlag] + base_argv
   base_argv = apply_ast_libstdcxx_cpp14_floor(
       base_argv, (not p.use_libcxx) and ctx.typ == "c++")
+  base_argv = apply_ast_libcxx_cpp17_floor(
+      base_argv, p.use_libcxx and ctx.typ == "c++")
   base_argv = apply_ast_gnuxx_remap(base_argv, p.ast_gnuxx_remap)
   p.base_argv = base_argv
 
