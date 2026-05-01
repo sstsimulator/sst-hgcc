@@ -193,13 +193,31 @@ def host_compile_argv_for_ast(ctx, args):
   return _filter_ast_host_flags(argv)
 
 
-def compile_commands_argv_for_source(source_path):
-  """Argv from HGCC_COMPILE_COMMANDS JSON for this TU, or None.
+def _path_match_keys(p):
+  """Return canonical-equivalent keys for a filesystem path.
 
-  TODO: os.path.abspath is used on both sides of the comparison; consider
-  switching to os.path.realpath so symlinked build trees or DB paths that
-  differ only by a symlinked directory component still match.
+  Includes both abspath and realpath so a compile_commands lookup matches
+  across symlinks (brew Cellar) and macOS APFS firmlinks (/tmp <-> /private/
+  tmp, /var <-> /private/var). Falls back to the input on resolution errors.
   """
+  if not p:
+    return frozenset()
+  keys = set()
+  try:
+    keys.add(os.path.abspath(p))
+  except (OSError, ValueError):
+    pass
+  try:
+    keys.add(os.path.realpath(p))
+  except (OSError, ValueError):
+    pass
+  if not keys:
+    keys.add(p)
+  return frozenset(keys)
+
+
+def compile_commands_argv_for_source(source_path):
+  """Argv from HGCC_COMPILE_COMMANDS JSON for this TU, or None."""
   raw = os.environ.get("HGCC_COMPILE_COMMANDS")
   if not raw:
     return None
@@ -211,15 +229,19 @@ def compile_commands_argv_for_source(source_path):
       db = json.load(fh)
   except (OSError, ValueError, json.JSONDecodeError):
     return None
-  want = os.path.abspath(source_path)
+  want = _path_match_keys(source_path)
+  if not want:
+    return None
   for ent in db:
     f = ent.get("file")
     if not f:
       continue
-    try:
-      if os.path.abspath(f) != want:
-        continue
-    except OSError:
+    if not os.path.isabs(f):
+      d = ent.get("directory")
+      if d:
+        f = os.path.join(d, f)
+    cand = _path_match_keys(f)
+    if cand.isdisjoint(want):
       continue
     args = ent.get("arguments")
     if isinstance(args, list) and args:
