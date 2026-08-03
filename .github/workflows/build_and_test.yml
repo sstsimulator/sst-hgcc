@@ -14,7 +14,7 @@ permissions: {}
 
 jobs:
   build:
-    runs-on: ${{ matrix.os}}
+    runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,12 +22,6 @@ jobs:
         os: ['macos-14', 'ubuntu-24.04']
     env:
       INSTALL_PREFIX: ${{ github.workspace }}/install
-      LLVM_ROOT: /opt/homebrew/opt/llvm@22
-      FILECHECK: /opt/homebrew/opt/llvm@22/bin/FileCheck
-      TERM: dumb
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
-      CCACHE_MAXSIZE: 2G
-      CCACHE_COMPILERCHECK: content
     steps:
       - name: Install Mac dependencies
         if: runner.os == 'macOS'
@@ -87,10 +81,12 @@ jobs:
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03
         with:
           key: ${{ github.job }}-${{ matrix.os}}
+          max-size: 2G
 
       - name: Set Mac environment
         if: runner.os == 'macOS'
         run: |
+          echo "LLVM_ROOT=/opt/homebrew/opt/llvm@22" >> "${GITHUB_ENV}"
           echo "${LLVM_ROOT}/bin" >> "${GITHUB_PATH}"
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           echo "PATH=${LLVM_ROOT}/bin:${PATH}" >> "${GITHUB_ENV}"
@@ -103,6 +99,7 @@ jobs:
       - name: Set Linux environment
         if: runner.os == 'Linux'
         run: |
+          echo "LLVM_ROOT=/usr/lib/llvm-22" >> "${GITHUB_ENV}"
           echo "${LLVM_ROOT}/bin" >> "${GITHUB_PATH}"
           export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           echo "PATH=${LLVM_ROOT}/bin:${PATH}" >> "${GITHUB_ENV}"
@@ -167,6 +164,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
+          name: hgcc-test-output-${{ matrix.os }}
           path: |
             sst-hgcc-build/tests/lit-junit.xml
             sst-hgcc/tests/lit-tests/Output
@@ -174,15 +172,3 @@ jobs:
           if-no-files-found: ignore
           compression-level: 9
           retention-days: 5
-
-  # ubuntu-24_04:
-  #   runs-on: ubuntu-24.04
-  #   env:
-  #     INSTALL_PREFIX: ${{ github.workspace }}/install
-  #     LLVM_ROOT: /usr/lib/llvm-22
-  #     FILECHECK: /usr/lib/llvm-22/bin/FileCheck
-  #     TERM: dumb
-  #     CCACHE_DIR: ${{ github.workspace }}/.ccache
-  #     CCACHE_MAXSIZE: 2G
-  #     CCACHE_COMPILERCHECK: content
-  #   steps:
