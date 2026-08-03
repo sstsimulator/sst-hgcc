@@ -91,7 +91,7 @@ make check          # lit rewriter tests (optional)
 make installcheck   # SST integration test (requires sst on PATH)
 ```
 
-The above command should generate (roughly) the following output:
+The above command generates the following output:
 ```bash
 ./build.sh 
 + cat test_tls.cc
