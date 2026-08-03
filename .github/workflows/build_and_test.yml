@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: build-and-test-${{ github.ref }}-${{ github.event.pull_request.number || github.run_number }}
+  group: build-and-test-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 permissions: {}
