@@ -57,17 +57,15 @@ jobs:
             llvm@22 \
             open-mpi
 
-      - name: Restore ccache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03
         with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ runner.os }}-llvm22-${{ github.run_id }}
-          restore-keys: |
-            ccache-${{ runner.os }}-llvm22-
+          key: ${{ github.job }}-mac
 
       - name: Set environment
         run: |
           echo "${LLVM_ROOT}/bin" >> "${GITHUB_PATH}"
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           echo "PATH=${LLVM_ROOT}/bin:${PATH}" >> "${GITHUB_ENV}"
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "${GITHUB_ENV}"
           echo "MAKEFLAGS=-j$(sysctl -n hw.ncpu)" >> "${GITHUB_ENV}"
@@ -196,17 +194,15 @@ jobs:
             llvm-22-dev
           python3 -m pip install lit
 
-      - name: Restore ccache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03
         with:
-          path: ${{ github.workspace }}/.ccache
-          key: ccache-${{ runner.os }}-llvm22-${{ github.run_id }}
-          restore-keys: |
-            ccache-${{ runner.os }}-llvm22-
+          key: ${{ github.job }}-ubuntu
 
       - name: Set environment
         run: |
           echo "${LLVM_ROOT}/bin" >> "${GITHUB_PATH}"
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           echo "PATH=${LLVM_ROOT}/bin:${PATH}" >> "${GITHUB_ENV}"
           echo "MAKEFLAGS=-j$(nproc)" >> "${GITHUB_ENV}"
           echo "CC=ccache gcc" >> "${GITHUB_ENV}"
