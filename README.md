@@ -692,11 +692,6 @@ sst-hgcc/
 
 ---
 
-## Examples index
-
-All examples live under [`examples/`](examples/). They are compiled on demand
-with `make examples` — they are not part of the default `make` or
-`make install` workflow.
 
 | Example | Type | Description |
 |---------|------|-------------|
