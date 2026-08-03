@@ -13,8 +13,9 @@ concurrency:
 permissions: {}
 
 jobs:
-  macos-14:
-    runs-on: macos-14
+  build:
+    runs-on: ${{ matrix.os}}
+    name: ${{ matrix.os }}
     env:
       INSTALL_PREFIX: ${{ github.workspace }}/install
       LLVM_ROOT: /opt/homebrew/opt/llvm@22
@@ -208,58 +209,6 @@ jobs:
           echo "CC=ccache gcc" >> "${GITHUB_ENV}"
           echo "CXX=ccache g++" >> "${GITHUB_ENV}"
           ccache --zero-stats
-
-      - name: Build and install core
-        run: |
-          pushd sst-core
-          ./autogen.sh
-          popd
-          mkdir -p sst-core-build
-          pushd sst-core-build
-          ../sst-core/configure --prefix="${INSTALL_PREFIX}"
-          make install
-          popd
-
-      - name: Build and install elements
-        run: |
-          pushd sst-elements
-          ./autogen.sh
-          popd
-          mkdir -p sst-elements-build
-          pushd sst-elements-build
-          ../sst-elements/configure \
-            --prefix="${INSTALL_PREFIX}" \
-            --with-sst-core="${INSTALL_PREFIX}"
-          make install
-          popd
-
-      - name: Build hgcc
-        run: |
-          export PATH="${INSTALL_PREFIX}/bin:${LLVM_ROOT}/bin:${PATH}"
-          pushd sst-hgcc
-          ./autogen.sh
-          popd
-          mkdir -p sst-hgcc-build
-          pushd sst-hgcc-build
-          ../sst-hgcc/configure \
-            --prefix="${INSTALL_PREFIX}" \
-            --with-sst-core="${INSTALL_PREFIX}" \
-            --with-sst-elements="${INSTALL_PREFIX}" \
-            --with-clang="${LLVM_ROOT}" \
-            --with-std=17 \
-            --enable-strict-tests \
-            CC=gcc \
-            CXX=g++
-          make CC="ccache gcc" CXX="ccache g++"
-          popd
-          ccache --show-stats
-
-      - name: Test hgcc
-        run: |
-          export PATH="${INSTALL_PREFIX}/bin:${LLVM_ROOT}/bin:${PATH}"
-          pushd sst-hgcc-build
-          make check
-          popd
 
       - name: Upload hgcc test artifacts
         if: ${{ !cancelled() }}
