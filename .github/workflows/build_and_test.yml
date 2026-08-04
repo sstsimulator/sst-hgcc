@@ -33,6 +33,7 @@ jobs:
             lit \
             llvm@22 \
             open-mpi
+
       - name: Install Ubuntu dependencies
         if: runner.os == 'Linux'
         run: |
@@ -55,6 +56,7 @@ jobs:
             libclang-cpp22-dev \
             llvm-22-dev
           python3 -m pip install lit
+
       - name: Clone core
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
@@ -81,15 +83,14 @@ jobs:
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03
         with:
           key: ${{ github.job }}-${{ matrix.os}}
-          max-size: 2G
+          max-size: 5G
 
       - name: Set Mac environment
         if: runner.os == 'macOS'
         run: |
+          echo "/usr/local/opt/ccache/libexec" >> "${GITHUB_PATH}"
           echo "LLVM_ROOT=/opt/homebrew/opt/llvm@22" >> "${GITHUB_ENV}"
           echo "${LLVM_ROOT}/bin" >> "${GITHUB_PATH}"
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          echo "PATH=${LLVM_ROOT}/bin:${PATH}" >> "${GITHUB_ENV}"
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> "${GITHUB_ENV}"
           echo "MAKEFLAGS=-j$(sysctl -n hw.ncpu)" >> "${GITHUB_ENV}"
           echo "CC=ccache clang" >> "${GITHUB_ENV}"
@@ -99,10 +100,9 @@ jobs:
       - name: Set Linux environment
         if: runner.os == 'Linux'
         run: |
+          echo "/usr/lib/ccache" >> "${GITHUB_PATH}"
           echo "LLVM_ROOT=/usr/lib/llvm-22" >> "${GITHUB_ENV}"
           echo "${LLVM_ROOT}/bin" >> "${GITHUB_PATH}"
-          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-          echo "PATH=${LLVM_ROOT}/bin:${PATH}" >> "${GITHUB_ENV}"
           echo "MAKEFLAGS=-j$(nproc)" >> "${GITHUB_ENV}"
           echo "CC=ccache gcc" >> "${GITHUB_ENV}"
           echo "CXX=ccache g++" >> "${GITHUB_ENV}"
