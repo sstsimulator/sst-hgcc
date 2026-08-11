@@ -158,6 +158,7 @@ jobs:
           export PATH="${INSTALL_PREFIX}/bin:${LLVM_ROOT}/bin:${PATH}"
           pushd sst-hgcc-build
           make check
+          make run-examples
           popd
 
       - name: Upload hgcc test artifacts
