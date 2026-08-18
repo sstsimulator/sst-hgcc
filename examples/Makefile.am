@@ -34,7 +34,8 @@ uninstall-examples:
 
 run-examples: examples
 	@if test -n "@SST_PROG@" || command -v sst >/dev/null 2>&1; then \
-	    SST_BIN=$${SST_BIN:-@SST_PROG@} \
+	    export SST_BIN=$${SST_BIN:-@SST_PROG@}; \
+	    export SST_LIB_PATH=$(abs_builddir)/examples$${SST_LIB_PATH:+:$${SST_LIB_PATH}}; \
 	    bash $(srcdir)/examples/mercury_hello/run.sh && \
 	    bash $(srcdir)/examples/mercury_hello_pragma/run.sh && \
 	    bash $(srcdir)/examples/pragmas/compute/demo_full/run.sh && \

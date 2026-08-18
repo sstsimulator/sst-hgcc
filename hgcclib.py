@@ -238,7 +238,7 @@ def run(typ, extraLibs=""):
   from hgccvars import sstLdFlags, sstCppFlags
   from hgccvars import prefix, execPrefix, includeDir, includeDirElements, cc, cxx, spackcc, spackcxx
   from hgccvars import sstCxxFlagsStr, sstCFlagsStr
-  from hgccvars import includeDir
+  from hgccvars import includeDir, srcDir
   from hgccvars import sstCore
   from hgccvars import soFlagsStr
   from hgccvars import clangBin
@@ -293,7 +293,7 @@ def run(typ, extraLibs=""):
                     help="whether to create an executable script or build a loadable shared object")
   parser.add_argument('--skeletonize', type=str,
                     help="whether to activate skeletonization mode, stripping compute and mem allocation. Can take a list of LLVM passes as argument.")
-  parser.add_argument('--memoize', type=str,
+  parser.add_argument('--memoize', type=str, nargs='?', const='',
                     help="whether to activate memoization mode that instruments and records execution. Can take a list of LLVM passes as argument.")
   parser.add_argument('-I', action="append", type=str, help="an include path", default=[])
   parser.add_argument('-D', action="append", type=str, help="a defines", default=[])
@@ -531,6 +531,12 @@ def run(typ, extraLibs=""):
       ctx.directIncludes.append("stdint.h")
     #ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "libraries", "compute", "compute_library.h") )
     ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "common", "skeleton.h") )
+    #source tree is the fallback so an uninstalled hgcc build still compiles pragmas
+    for hgccAppHeader in (os.path.join(cleanFlag(includeDir), "hgcc", "hgcc_app.h"),
+                          os.path.join(cleanFlag(srcDir), "hgcc_include", "hgcc_app.h")):
+      if os.path.isfile(hgccAppHeader):
+        ctx.directIncludes.append(hgccAppHeader)
+        break
 
     # Optional mpi/ replacement includes from temp dir.
     if not args.disable_mpi and hasattr(ctx, 'tempReplacementsDir'):
