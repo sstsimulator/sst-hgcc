@@ -84,6 +84,7 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.os}}
           max-size: 5G
+          append-timestamp: false
 
       - name: Set Mac environment
         if: runner.os == 'macOS'
