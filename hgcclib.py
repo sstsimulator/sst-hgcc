@@ -531,9 +531,11 @@ def run(typ, extraLibs=""):
       ctx.directIncludes.append("stdint.h")
     #ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "libraries", "compute", "compute_library.h") )
     ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "common", "skeleton.h") )
-    hgccAppHeader = os.path.join(cleanFlag(srcDir), "hgcc_include", "hgcc_app.h")
-    if os.path.isfile(hgccAppHeader):
-      ctx.directIncludes.append(hgccAppHeader)
+    for hgccAppHeader in (os.path.join(cleanFlag(includeDir), "hgcc", "hgcc_app.h"),
+                          os.path.join(cleanFlag(srcDir), "hgcc_include", "hgcc_app.h")):
+      if os.path.isfile(hgccAppHeader):
+        ctx.directIncludes.append(hgccAppHeader)
+        break
 
     # Optional mpi/ replacement includes from temp dir.
     if not args.disable_mpi and hasattr(ctx, 'tempReplacementsDir'):
