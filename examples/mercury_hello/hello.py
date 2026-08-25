@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import sst
 from sst.merlin.base import *
 from sst.merlin.endpoint import *
@@ -9,10 +10,10 @@ from sst.merlin.topology import *
 from sst.hg import *
 
 if __name__ == "__main__":
-    examples_dir = os.path.dirname(os.path.abspath(__file__))
-    platform_file = os.path.join(os.path.dirname(examples_dir), "platform_file_hg_test.py")
+    examples_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, examples_dir)
 
-    PlatformDefinition.loadPlatformFile(platform_file)
+    PlatformDefinition.loadPlatformFile("platform_file_hg_test")
     PlatformDefinition.setCurrentPlatform("platform_hg_test")
     platform = PlatformDefinition.getCurrentPlatform()
 

@@ -32,9 +32,12 @@ uninstall-examples:
 	rm -f $(DESTDIR)$(SST_ELEMENT_LIBRARY_EXT_LIBDIR)/libcompute_demo.so
 	rm -f $(DESTDIR)$(SST_ELEMENT_LIBRARY_EXT_LIBDIR)/libblocking_demo.so
 
-run-examples: examples
+install-exec-hook: install-examples
+uninstall-hook: uninstall-examples
+
+run-examples: install-examples
 	@if test -n "@SST_PROG@" || command -v sst >/dev/null 2>&1; then \
-	    SST_BIN=$${SST_BIN:-@SST_PROG@} \
+	    export SST_BIN=$${SST_BIN:-@SST_PROG@}; \
 	    bash $(srcdir)/examples/mercury_hello/run.sh && \
 	    bash $(srcdir)/examples/mercury_hello_pragma/run.sh && \
 	    bash $(srcdir)/examples/pragmas/compute/demo_full/run.sh && \
