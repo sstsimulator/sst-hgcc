@@ -118,7 +118,6 @@ endif
 # Install hgcc + replacement headers (with clang).
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(includedir)/hgcc/libraries/pthread
-	cp $(srcdir)/hgcc_include/hgcc_app.h $(DESTDIR)$(includedir)/hgcc/
 	cp $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
@@ -184,7 +183,6 @@ else
 # Headers-only install when clang is disabled.
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(includedir)/hgcc/libraries/pthread
-	cp $(srcdir)/hgcc_include/hgcc_app.h $(DESTDIR)$(includedir)/hgcc/
 	cp $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
 	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys

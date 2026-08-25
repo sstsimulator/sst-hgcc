@@ -238,7 +238,7 @@ def run(typ, extraLibs=""):
   from hgccvars import sstLdFlags, sstCppFlags
   from hgccvars import prefix, execPrefix, includeDir, includeDirElements, cc, cxx, spackcc, spackcxx
   from hgccvars import sstCxxFlagsStr, sstCFlagsStr
-  from hgccvars import includeDir, srcDir
+  from hgccvars import srcDir
   from hgccvars import sstCore
   from hgccvars import soFlagsStr
   from hgccvars import clangBin
@@ -531,12 +531,9 @@ def run(typ, extraLibs=""):
       ctx.directIncludes.append("stdint.h")
     #ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "libraries", "compute", "compute_library.h") )
     ctx.directIncludes.append( os.path.join( includeDirElements, "mercury", "common", "skeleton.h") )
-    #source tree is the fallback so an uninstalled hgcc build still compiles pragmas
-    for hgccAppHeader in (os.path.join(cleanFlag(includeDir), "hgcc", "hgcc_app.h"),
-                          os.path.join(cleanFlag(srcDir), "hgcc_include", "hgcc_app.h")):
-      if os.path.isfile(hgccAppHeader):
-        ctx.directIncludes.append(hgccAppHeader)
-        break
+    hgccAppHeader = os.path.join(cleanFlag(srcDir), "hgcc_include", "hgcc_app.h")
+    if os.path.isfile(hgccAppHeader):
+      ctx.directIncludes.append(hgccAppHeader)
 
     # Optional mpi/ replacement includes from temp dir.
     if not args.disable_mpi and hasattr(ctx, 'tempReplacementsDir'):
