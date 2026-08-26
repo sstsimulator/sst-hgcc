@@ -35,6 +35,7 @@ installcheck-local:
 	else \
 	    echo "test_tls: sst not installed; skipping (configure with --enable-strict-tests to enforce)"; \
 	fi
+	$(MAKE) $(AM_MAKEFLAGS) run-examples
 
 tests/test_tls.o: $(srcdir)/tests/test_tls.cc \
                   $(top_builddir)/ssthg_clang \

@@ -19,8 +19,9 @@ flowchart LR
     src[User C/C++ source]
     hgcc[hgcc / hg++]
     clang[ssthg_clang rewriter]
+    compiler[C/C++ compiler]
     so["libapp.so"]
-    src --> hgcc --> clang --> hgcc --> so
+    src --> hgcc --> clang --> hgcc --> compiler --> so
   end
   subgraph runTime [Runtime]
     sstPy[SST Python script]
@@ -45,7 +46,7 @@ way it would under `mpirun`. A few things change:
 
 - **`main` is renamed.** `ssthg_clang` renames `main` to
   `sst_hg_user_main_<mangled>` and emits a wrapper Mercury calls once per rank
-  inside a single OS process. There is no `mpiexec`; ranks are virtual.
+  inside a single virtual OS process. There is no `mpiexec`; ranks are virtual.
 - **MPI is virtual.** `#include <mask_mpi.h>` routes every MPI call through
   sst-elements' `mask_mpi`, which models messages on the simulated Merlin
   network. Real MPI is never linked or invoked.
@@ -55,7 +56,7 @@ way it would under `mpirun`. A few things change:
   `compute_library_access_width`, `compute_library_loop_overhead`). Values are
   no longer meaningful; **time** is. Use `#pragma sst keep` to preserve real
   computation where you need it.
-- **Globals and TLS are privatized.** All ranks live in one address space, so
+- **Globals and TLS are privatized.** All ranks residing in an sst-core simulation process share one address space, so
   the rewriter rewrites globals and thread-locals to per-rank storage. The
   `tests/test_tls.cc` integration test demonstrates this — every rank prints
   `my_global: 1` because each `++my_global` hits a private copy.
@@ -73,11 +74,11 @@ Install these in order before building sst-hgcc:
 
 | Component | Notes |
 |-----------|-------|
-| **SST Core** | Provides `sst-config` on your `PATH` |
-| **sst-elements** | Mercury/HG element; build with `--with-std=17` |
+| **Autotools** | `autoconf`, `automake`, `libtool` (used by `./autogen.sh`) |
 | **LLVM 22** | With libTooling (required for `ssthg_clang`) |
 | **C/C++ compiler** | Clang recommended (`CC=clang CXX=clang++`) |
-| **Autotools** | `autoconf`, `automake`, `libtool` (used by `./autogen.sh`) |
+| **SST Core** | Provides `sst-config` on your `PATH` |
+| **sst-elements** | Mercury/HG element; build with `--with-std=17` |
 
 ### Build and install
 
@@ -89,13 +90,13 @@ mkdir build && cd build
 
 ../configure CC=clang CXX=clang++ \
   --with-std=17 \
-  --prefix=$HOME/sst-hgcc/install \
-  --with-sst-core=$HOME/sst-core/install \
-  --with-sst-elements=$HOME/sst-elements/install \
-  --with-clang=$HOME/llvm-project-18.1.8.src/install
+  --prefix=$PREFIX \
+  --with-sst-core=$PREFIX \
+  --with-sst-elements=$PREFIX \
+  --with-clang=$PREFIX
 
 make -j$(nproc) && make install
-export PATH=$HOME/sst-hgcc/install/bin:$PATH
+export PATH=$PREFIX/bin:$PATH
 ```
 
 On macOS, also set:
@@ -111,7 +112,7 @@ export LDFLAGS="-fuse-ld=lld"
 hg++ --version
 hg++ --flags          # print Mercury include/link flags added automatically
 make check            # lit rewriter tests + test_tls library (optional)
-make installcheck     # SST integration test via tests/test_tls (needs sst on PATH)
+make installcheck     # SST integration test via tests/test_tls (needs sst in PATH)
 ```
 
 The examples under `examples/` are **not** built by `make`, `make install`, or
@@ -692,11 +693,6 @@ sst-hgcc/
 
 ---
 
-## Examples index
-
-All examples live under [`examples/`](examples/). They are compiled on demand
-with `make examples` — they are not part of the default `make` or
-`make install` workflow.
 
 | Example | Type | Description |
 |---------|------|-------------|

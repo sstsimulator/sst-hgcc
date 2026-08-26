@@ -30,6 +30,22 @@ dist_mv2support_DATA = \
   support/mv2/mv2_ld_glibc_stub.c \
   support/mv2/gen_register_shim.py
 
+install_replacements = \
+	cd $(srcdir)/replacements && \
+	find . -type d | while read d; do \
+	  $(MKDIR_P) "$(DESTDIR)$(includedir)/replacements/$$d"; \
+	done && \
+	find . -type f ! -name '*.in' | while read f; do \
+	  $(INSTALL_DATA) "$$f" "$(DESTDIR)$(includedir)/replacements/$$f"; \
+	done
+install_replacements_generated = \
+	if test -f $(builddir)/replacements/ssthg_pthread_clear.h; then \
+	  $(INSTALL_DATA) $(builddir)/replacements/ssthg_pthread_clear.h $(DESTDIR)$(includedir)/replacements/; \
+	fi; \
+	if test -f $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h; then \
+	  $(INSTALL_DATA) $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h $(DESTDIR)$(includedir)/replacements/libraries/pthread/; \
+	fi
+
 if HAVE_CLANG
 
 bin_PROGRAMS = ssthg_clang
@@ -118,23 +134,19 @@ endif
 # Install hgcc + replacement headers (with clang).
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(includedir)/hgcc/libraries/pthread
-	cp $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/linux
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/mpi
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries/pthread
-	cp -r $(srcdir)/replacements/* $(DESTDIR)$(includedir)/replacements/
-	@if test -f $(builddir)/replacements/ssthg_pthread_clear.h; then \
-		cp $(builddir)/replacements/ssthg_pthread_clear.h $(DESTDIR)$(includedir)/replacements/; \
-	fi
-	@if test -f $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h; then \
-		cp $(builddir)/replacements/libraries/pthread/sstmac_sys_types.h $(DESTDIR)$(includedir)/replacements/libraries/pthread/; \
-	fi
-	rm -f $(DESTDIR)$(includedir)/replacements/ssthg_pthread_clear.h.in
-	rm -f $(DESTDIR)$(includedir)/replacements/libraries/pthread/sstmac_sys_types.h.in
+	$(INSTALL_DATA) $(srcdir)/hgcc_include/hgcc_app.h $(DESTDIR)$(includedir)/hgcc/
+	$(INSTALL_DATA) $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
+	$(install_replacements)
+	$(install_replacements_generated)
 
+if CLANG_LINK_MONOLITHIC
+ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
+ -Wl,-rpath,@CLANG_INSTALL_DIR@/lib \
+ -lclang-cpp \
+ -lclang \
+ @CLANG_LIBTOOLING_LIBS@ \
+ @CLANG_LIBTOOLING_SYSTEM_LIBS@
+else
 ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
  -Wl,-rpath,@CLANG_INSTALL_DIR@/lib \
  @LINK_GROUP_START@ \
@@ -164,6 +176,7 @@ ssthg_clang_LDFLAGS = $(CLANG_LDFLAGS) \
  -lclangAnalysisLifetimeSafety \
  @CLANG_LIBTOOLING_LIBS@ \
  @CLANG_LIBTOOLING_SYSTEM_LIBS@ @LINK_GROUP_END@
+endif
 
 # TODO Figure out why this was included
 # if CLANG_NEED_LIBCPP
@@ -174,12 +187,8 @@ else
 # Headers-only install when clang is disabled.
 install-data-local:
 	$(MKDIR_P) $(DESTDIR)$(includedir)/hgcc/libraries/pthread
-	cp $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/sys
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/linux
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/mpi
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries
-	$(MKDIR_P) $(DESTDIR)$(includedir)/replacements/libraries/pthread
-	cp -r $(srcdir)/replacements/* $(DESTDIR)$(includedir)/replacements/
+	$(INSTALL_DATA) $(srcdir)/hgcc_include/hgcc_app.h $(DESTDIR)$(includedir)/hgcc/
+	$(INSTALL_DATA) $(srcdir)/hgcc_include/libraries/pthread/hgcc_pthread_spinlock.h $(DESTDIR)$(includedir)/hgcc/libraries/pthread/
+	$(install_replacements)
+	$(install_replacements_generated)
 endif
