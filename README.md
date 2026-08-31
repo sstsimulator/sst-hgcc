@@ -487,59 +487,59 @@ full SST-runnable demos are listed separately.
 
 | Pragma | Syntax | Description | Modes | Example |
 |--------|--------|-------------|-------|---------|
-| `delete` | `#pragma sst delete` | Remove the next statement/declaration | skeletonize, shadowize | `#pragma sst delete`<br>`x = expensive();` |
-| `instead` | `#pragma sst instead <code>` | Replace next statement with verbatim code | skeletonize, puppetize, shadowize | `#pragma sst instead {y = 0;}`<br>`y = expensive();` |
-| `init` | `#pragma sst init <expr>` | Rewrite initializer or assignment RHS | skeletonize, puppetize, shadowize | `#pragma sst init 0`<br>`int x = expensive();` |
-| `replace` | `#pragma sst replace <id> <repl>` | Replace uses of `<id>` with `<repl>` | skeletonize, puppetize, shadowize | `#pragma sst replace x y`<br>`int z = x + 1;` |
-| `empty` | `#pragma sst empty [<body>]` | Replace function body with `{<body>}` | skeletonize, shadowize | `#pragma sst empty`<br>`void f() { /* body */ }` |
-| `return` | `#pragma sst return <expr>` | Replace function body or return stmt | skeletonize, shadowize, puppetize | `#pragma sst return 0`<br>`int f() { /* body */ }` |
-| `malloc` | `#pragma sst malloc` | Rewrite malloc init to null buffer | skeletonize, shadowize | `#pragma sst malloc`<br>`int* p = (int*)malloc(N);` |
-| `new` | `#pragma sst new` | Collapse C++ `new` to `nullptr` | skeletonize, shadowize | `#pragma sst new`<br>`T* p = new T[N];` |
-| `null_type` | `#pragma sst null_type [<type> [except…]]` | Replace variable/field type | skeletonize, shadowize | `#pragma sst null_type`<br>`Heavy h;` |
-| `assume_true` | `#pragma sst assume_true` | Force next `if` condition to `true` | skeletonize, shadowize, puppetize | `#pragma sst assume_true`<br>`if (cond) { … }` |
-| `assume_false` | `#pragma sst assume_false` | Force next `if` condition to `false` | skeletonize, shadowize, puppetize | `#pragma sst assume_false`<br>`if (cond) { … }` |
-| `loop_count` | `#pragma sst loop_count <N>` | Rewrite loop to iterate exactly N times | skeletonize, puppetize, shadowize | `#pragma sst loop_count 8`<br>`for (int i=0; i<N; ++i) …` |
+| `delete` | `#pragma sst delete` | Remove the next statement/declaration | skeletonize, shadowize | `#pragma sst delete`<br/>`x = expensive();` |
+| `instead` | `#pragma sst instead <code>` | Replace next statement with verbatim code | skeletonize, puppetize, shadowize | `#pragma sst instead {y = 0;}`<br/>`y = expensive();` |
+| `init` | `#pragma sst init <expr>` | Rewrite initializer or assignment RHS | skeletonize, puppetize, shadowize | `#pragma sst init 0`<br/>`int x = expensive();` |
+| `replace` | `#pragma sst replace <id> <repl>` | Replace uses of `<id>` with `<repl>` | skeletonize, puppetize, shadowize | `#pragma sst replace x y`<br/>`int z = x + 1;` |
+| `empty` | `#pragma sst empty [<body>]` | Replace function body with `{<body>}` | skeletonize, shadowize | `#pragma sst empty`<br/>`void f() { /* body */ }` |
+| `return` | `#pragma sst return <expr>` | Replace function body or return stmt | skeletonize, shadowize, puppetize | `#pragma sst return 0`<br/>`int f() { /* body */ }` |
+| `malloc` | `#pragma sst malloc` | Rewrite malloc init to null buffer | skeletonize, shadowize | `#pragma sst malloc`<br/>`int* p = (int*)malloc(N);` |
+| `new` | `#pragma sst new` | Collapse C++ `new` to `nullptr` | skeletonize, shadowize | `#pragma sst new`<br/>`T* p = new T[N];` |
+| `null_type` | `#pragma sst null_type [<type> [except…]]` | Replace variable/field type | skeletonize, shadowize | `#pragma sst null_type`<br/>`Heavy h;` |
+| `assume_true` | `#pragma sst assume_true` | Force next `if` condition to `true` | skeletonize, shadowize, puppetize | `#pragma sst assume_true`<br/>`if (cond) { … }` |
+| `assume_false` | `#pragma sst assume_false` | Force next `if` condition to `false` | skeletonize, shadowize, puppetize | `#pragma sst assume_false`<br/>`if (cond) { … }` |
+| `loop_count` | `#pragma sst loop_count <N>` | Rewrite loop to iterate exactly N times | skeletonize, puppetize, shadowize | `#pragma sst loop_count 8`<br/>`for (int i=0; i<N; ++i) …` |
 
 ### Null-pointer and field skeletonization
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `null_ptr` | `#pragma sst null_ptr [options…]` | Mark pointers as null; rewrite uses. Options: `replace(...)`, `target(...)`, `except(...)`, `only(...)`, `safe`, `delete_all`, `skel_compute` | `#pragma sst null_ptr replace(nullptr)`<br>`int* p = malloc(n);` |
-| `null_fields` | `#pragma sst null_fields <field> …` | Mark listed struct fields as null | `#pragma sst null_fields buf`<br>`struct S { int* buf; };` |
-| `nonnull_fields` | `#pragma sst nonnull_fields <field> …` | Keep only listed fields; skeletonize others | `#pragma sst nonnull_fields id`<br>`struct S { int id; int* buf; };` |
+| `null_ptr` | `#pragma sst null_ptr [options…]` | Mark pointers as null; rewrite uses. Options: `replace(...)`, `target(...)`, `except(...)`, `only(...)`, `safe`, `delete_all`, `skel_compute` | `#pragma sst null_ptr replace(nullptr)`<br/>`int* p = malloc(n);` |
+| `null_fields` | `#pragma sst null_fields <field> …` | Mark listed struct fields as null | `#pragma sst null_fields buf`<br/>`struct S { int* buf; };` |
+| `nonnull_fields` | `#pragma sst nonnull_fields <field> …` | Keep only listed fields; skeletonize others | `#pragma sst nonnull_fields id`<br/>`struct S { int id; int* buf; };` |
 
 ### Compute skeletonization
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
 | `compute` | `#pragma sst compute` | Skeletonize next loop/if/body into simulated compute ops | [demo_full/](examples/pragmas/compute/demo_full/) |
-| `always_compute` | `#pragma sst always_compute` | Same as `compute`; also active in encapsulate mode | `#pragma sst always_compute`<br>`for (i=0; i<N; ++i) acc += i;` |
-| `memory` | `#pragma sst memory <spec>` | Attach memory-intensity metadata (no direct rewrite) | `#pragma sst memory 1.5`<br>`for (i=0; i<N; ++i) a[i] = b[i];` |
-| `omp parallel` | `#pragma omp parallel [num_threads(N)]` | Treated as compute with thread count | `#pragma omp parallel num_threads(4)`<br>`{ /* work */ }` |
+| `always_compute` | `#pragma sst always_compute` | Same as `compute`; also active in encapsulate mode | `#pragma sst always_compute`<br/>`for (i=0; i<N; ++i) acc += i;` |
+| `memory` | `#pragma sst memory <spec>` | Attach memory-intensity metadata (no direct rewrite) | `#pragma sst memory 1.5`<br/>`for (i=0; i<N; ++i) a[i] = b[i];` |
+| `omp parallel` | `#pragma omp parallel [num_threads(N)]` | Treated as compute with thread count | `#pragma omp parallel num_threads(4)`<br/>`{ /* work */ }` |
 
 ### Simulation timing and instrumentation
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `advance_time` | `#pragma sst advance_time <unit> <amount>` | Insert time advance (`sec`, `msec`, `usec`, `nsec`) | `#pragma sst advance_time usec 10`<br>`do_work();` |
-| `overhead` | `#pragma sst overhead <param>` | Insert `ssthg_advance_time("<param>")` | `#pragma sst overhead launch_overhead`<br>`kernel();` |
+| `advance_time` | `#pragma sst advance_time <unit> <amount>` | Insert time advance (`sec`, `msec`, `usec`, `nsec`) | `#pragma sst advance_time usec 10`<br/>`do_work();` |
+| `overhead` | `#pragma sst overhead <param>` | Insert `ssthg_advance_time("<param>")` | `#pragma sst overhead launch_overhead`<br/>`kernel();` |
 | `blocking` | `#pragma sst blocking api(<name>) [condition(<expr>)] [timeout(<expr>)]` | Insert `sst_hg_blocking_call(...)` | [demo_full/](examples/pragmas/blocking/demo_full/) |
-| `call` | `#pragma sst call <tokens>` | Insert verbatim function call before next stmt | `#pragma sst call ssthg_log("hi")`<br>`work();` |
-| `stack_alloc` | `#pragma sst stack_alloc alloc(<size>[,<mdata>])` or `free(<var>)` | Stack allocation simulation hooks | `#pragma sst stack_alloc alloc(4096)`<br>`char buf[4096];` |
+| `call` | `#pragma sst call <tokens>` | Insert verbatim function call before next stmt | `#pragma sst call ssthg_log("hi")`<br/>`work();` |
+| `stack_alloc` | `#pragma sst stack_alloc alloc(<size>[,<mdata>])` or `free(<var>)` | Stack allocation simulation hooks | `#pragma sst stack_alloc alloc(4096)`<br/>`char buf[4096];` |
 
 ### Preservation
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `keep` | `#pragma sst keep` | Leave next statement untouched by skeletonization | `#pragma sst keep`<br>`return real_value;` |
-| `keep_if` | `#pragma sst keep_if <cond>` | Wrap next stmt in `if (<cond>) { … }` | `#pragma sst keep_if rank==0`<br>`printf("hi\n");` |
+| `keep` | `#pragma sst keep` | Leave next statement untouched by skeletonization | `#pragma sst keep`<br/>`return real_value;` |
+| `keep_if` | `#pragma sst keep_if <cond>` | Wrap next stmt in `if (<cond>) { … }` | `#pragma sst keep_if rank==0`<br/>`printf("hi\n");` |
 
 ### Metadata
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `global` | `#pragma sst global <name>` | Mark a name as a dependent-scope global | `#pragma sst global gv`<br>`return gv;` |
-| `branch_predict` | `#pragma sst branch_predict <prob>` | Store branch probability on next `if` | `#pragma sst branch_predict 0.95`<br>`if (likely) { … }` |
+| `global` | `#pragma sst global <name>` | Mark a name as a dependent-scope global | `#pragma sst global gv`<br/>`return gv;` |
+| `branch_predict` | `#pragma sst branch_predict <prob>` | Store branch probability on next `if` | `#pragma sst branch_predict 0.95`<br/>`if (likely) { … }` |
 
 ### Memoization
 
@@ -553,7 +553,7 @@ Compile with `hg++ --memoize -c demo.cc`.
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `placeholder` | `#pragma sst placeholder tool(<toolstr>)` | Insert LLVM `annotate` attribute on enclosing function | `#pragma sst placeholder tool("dyninst")`<br>`void hot() { … }` |
+| `placeholder` | `#pragma sst placeholder tool(<toolstr>)` | Insert LLVM `annotate` attribute on enclosing function | `#pragma sst placeholder tool("dyninst")`<br/>`void hot() { … }` |
 
 Active in `--puppetize` and `--shadowize` modes.
 
