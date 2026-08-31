@@ -9,7 +9,7 @@ provides `hgcc` and `hg++` compiler wrappers plus an LLVM-based source rewriter
 HGCC is **not** a standalone MPI runtime. You need SST Core, sst-elements (with
 the Mercury/HG element), and LLVM/Clang with libTooling to build and use it.
 
-For step-by-step install commands, see [INSTALL.md](INSTALL.md).
+For step-by-step install commands, see [INSTALL.md](https://github.com/sstsimulator/sst-hgcc/blob/main/INSTALL.md).
 
 ## How it works
 
@@ -604,7 +604,7 @@ static int _reg = userSkeletonMainInitFxn("hello", sst_hg_user_main_hello);
 ```
 
 The lit suite uses exactly this output for `FileCheck` assertions; see
-[tests/lit-tests/README.md](tests/lit-tests/README.md) for the FileCheck
+[tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md) for the FileCheck
 patterns each `#pragma sst` rewrite must satisfy.
 
 ### Automatic skeletonization
@@ -642,7 +642,7 @@ If HGCC cannot determine whether a variable is global, it may suggest:
 | At simulation time: `userSkeletonMainInitFxn: unknown app "<name>"` | `app1.name` / `app1.exe_library_name` don't match the `ssthg_app_name` you compiled with — or `lib<name>.so` isn't on `SST_ELEMENT_LIBRARY_EXT_LIBDIR`. Re-run `make install-examples` or copy the `.so` manually |
 | Rewriter warning *"could not determine if `X` is global"* | Add `#pragma sst global X` inside the dependent scope so the rewriter can privatize it |
 | macOS linker errors about missing symbols / wrong arch | Export `SDKROOT=$(xcrun --sdk macosx --show-sdk-path)` and `LDFLAGS="-fuse-ld=lld"` before configuring |
-| `make check` skips with "lit not installed" | `pip install lit` and point `$FILECHECK` at an LLVM `FileCheck` binary. See [tests/lit-tests/README.md](tests/lit-tests/README.md) |
+| `make check` skips with "lit not installed" | `pip install lit` and point `$FILECHECK` at an LLVM `FileCheck` binary. See [tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md) |
 | `.so` builds but `sst app.py` says `library not found` | The `.so` must live under `$SST_ELEMENT_LIBRARY_EXT_LIBDIR` (or whatever `sst-config --ELEMENT_LIB_PATH` reports); `make install-examples` handles this for the bundled demos |
 
 ---
@@ -685,7 +685,7 @@ sst-hgcc/
 ### Testing
 
 - **Rewriter unit tests:** [`tests/lit-tests/`](tests/lit-tests/) — run with
-  `lit -v tests/lit-tests` (see [tests/lit-tests/README.md](tests/lit-tests/README.md))
+  `lit -v tests/lit-tests` (see [tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md))
 - **Integration test:** `tests/test_tls.cc` — built and run via `make installcheck`
 - **Examples:** `make examples` compiles all example sources;
   `make install-examples` installs runnable `.so` files;
