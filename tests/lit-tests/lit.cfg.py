@@ -4,7 +4,7 @@ import shutil
 import lit.formats
 
 config.name = "sst-hgcc"
-config.test_format = lit.formats.ShTest(execute_external=True)
+config.test_format = lit.formats.ShTest(execute_external=False)
 config.suffixes = [".cc", ".c"]
 config.test_source_root = os.path.dirname(os.path.realpath(__file__))
 config.test_exec_root = os.path.join(config.test_source_root, "Output")
