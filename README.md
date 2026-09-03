@@ -177,7 +177,7 @@ After `make install`, key paths under `$prefix` are:
 
 ## Building the examples
 
-The [`examples/`](examples/) directory contains documented Mercury apps and
+The [`examples/`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/) directory contains documented Mercury apps and
 `#pragma sst` demos. These are **optional** and kept separate from the main
 toolchain build so that a normal install stays fast and does not require a full
 Mercury/SST stack at compile time.
@@ -234,7 +234,7 @@ walkthrough below) without using the make targets at all.
 
 ## Building and Running a Mercury App
 
-This walkthrough uses [`examples/mercury_hello/`](examples/mercury_hello/), a
+This walkthrough uses [`examples/mercury_hello/`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/), a
 minimal two-rank MPI program.
 
 ### Step 1 — Write the application source
@@ -267,7 +267,7 @@ Key conventions:
   `sst_hg_user_main_<mangled>` and emits a wrapper that Mercury calls at load
   time.
 
-See [`examples/mercury_hello/hello.cc`](examples/mercury_hello/hello.cc).
+See [`examples/mercury_hello/hello.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/hello.cc).
 
 ### Step 2 — Compile and link
 
@@ -290,7 +290,7 @@ make examples
 
 The driver configures the simulated platform, network topology, and operating
 system parameters. See
-[`examples/mercury_hello/hello.py`](examples/mercury_hello/hello.py):
+[`examples/mercury_hello/hello.py`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/hello.py):
 
 ```python
 import os
@@ -335,7 +335,7 @@ Important OS parameters:
 | `app1.libraries` | Compute and MPI library bindings |
 
 The shared platform definition is in
-[`examples/platform_file_hg_test.py`](examples/platform_file_hg_test.py).
+[`examples/platform_file_hg_test.py`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/platform_file_hg_test.py).
 The annotated parameters below are the ones most worth tuning:
 
 | Param set | Key | Effect |
@@ -401,14 +401,14 @@ The minimum diff to take a working MPI program and run it under Mercury:
 3. **Build as a shared library.** Use `hg++ -c app.cc` then
    `hg++ app.o -o libapp.so`. HGCC never produces a standalone executable.
 4. **Write the SST Python driver.** Reuse
-   [`examples/platform_file_hg_test.py`](examples/platform_file_hg_test.py)
+   [`examples/platform_file_hg_test.py`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/platform_file_hg_test.py)
    and set `app1.name` and `app1.exe_library_name` to your `<name>`.
 5. **(Optional) Skeletonize hot loops.** Mark long compute regions with
    `#pragma sst compute` or `#pragma sst advance_time usec N` so the simulator
    models — rather than runs — them. Keep correctness-critical code under
    `#pragma sst keep`.
 
-[`examples/mercury_hello/hello.cc`](examples/mercury_hello/hello.cc) is the
+[`examples/mercury_hello/hello.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/hello.cc) is the
 canonical "after" baseline: ~15 lines covering items 1–3.
 
 ---
@@ -419,7 +419,7 @@ Pragmas let you control how `ssthg_clang` rewrites specific statements. They
 apply to the **next** statement or declaration.
 
 The extended example is in
-[`examples/mercury_hello_pragma/`](examples/mercury_hello_pragma/). It adds a
+[`examples/mercury_hello_pragma/`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello_pragma/). It adds a
 simulated time delay before printing:
 
 ```cpp
@@ -430,12 +430,12 @@ std::cerr << "Hello from rank " << rank << std::endl;
 ### How pragmas work
 
 1. During preprocessing, HGCC registers handlers for `#pragma sst <name>` via
-   `PragmaPPCallback` ([`clang/frontendActions.cc`](clang/frontendActions.cc)).
+   `PragmaPPCallback` ([`clang/frontendActions.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/frontendActions.cc)).
 2. Token capture records the pragma and the location of the next AST node
-   ([`clang/pragmas.cc`](clang/pragmas.cc)).
+   ([`clang/pragmas.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/pragmas.cc)).
 3. During AST traversal, `PragmaActivateGuard` matches pragmas to statements,
    calls `activate()` to rewrite the source, then `deactivate()` on scope exit
-   ([`clang/astVisitor.h`](clang/astVisitor.h)).
+   ([`clang/astVisitor.h`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/astVisitor.h)).
 4. For `advance_time usec 10`, the rewriter inserts `ssthg_usleep(10);`
    before the next statement, modeling compute delay in simulation.
 
@@ -449,7 +449,7 @@ sst examples/mercury_hello_pragma/hello_pragma.py
 
 The simulated time will be higher than the base hello example because of the
 inserted delay. See also
-[`examples/pragmas/advance_time/demo.cc`](examples/pragmas/advance_time/demo.cc).
+[`examples/pragmas/advance_time/demo.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/advance_time/demo.cc).
 
 ---
 
@@ -512,7 +512,7 @@ full SST-runnable demos are listed separately.
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `compute` | `#pragma sst compute` | Skeletonize next loop/if/body into simulated compute ops | [demo_full/](examples/pragmas/compute/demo_full/) |
+| `compute` | `#pragma sst compute` | Skeletonize next loop/if/body into simulated compute ops | [demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/compute/demo_full/) |
 | `always_compute` | `#pragma sst always_compute` | Same as `compute`; also active in encapsulate mode | `#pragma sst always_compute`<br/>`for (i=0; i<N; ++i) acc += i;` |
 | `memory` | `#pragma sst memory <spec>` | Attach memory-intensity metadata (no direct rewrite) | `#pragma sst memory 1.5`<br/>`for (i=0; i<N; ++i) a[i] = b[i];` |
 | `omp parallel` | `#pragma omp parallel [num_threads(N)]` | Treated as compute with thread count | `#pragma omp parallel num_threads(4)`<br/>`{ /* work */ }` |
@@ -523,7 +523,7 @@ full SST-runnable demos are listed separately.
 |--------|--------|-------------|---------|
 | `advance_time` | `#pragma sst advance_time <unit> <amount>` | Insert time advance (`sec`, `msec`, `usec`, `nsec`) | `#pragma sst advance_time usec 10`<br/>`do_work();` |
 | `overhead` | `#pragma sst overhead <param>` | Insert `ssthg_advance_time("<param>")` | `#pragma sst overhead launch_overhead`<br/>`kernel();` |
-| `blocking` | `#pragma sst blocking api(<name>) [condition(<expr>)] [timeout(<expr>)]` | Insert `sst_hg_blocking_call(...)` | [demo_full/](examples/pragmas/blocking/demo_full/) |
+| `blocking` | `#pragma sst blocking api(<name>) [condition(<expr>)] [timeout(<expr>)]` | Insert `sst_hg_blocking_call(...)` | [demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/blocking/demo_full/) |
 | `call` | `#pragma sst call <tokens>` | Insert verbatim function call before next stmt | `#pragma sst call ssthg_log("hi")`<br/>`work();` |
 | `stack_alloc` | `#pragma sst stack_alloc alloc(<size>[,<mdata>])` or `free(<var>)` | Stack allocation simulation hooks | `#pragma sst stack_alloc alloc(4096)`<br/>`char buf[4096];` |
 
@@ -545,7 +545,7 @@ full SST-runnable demos are listed separately.
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `memoize` | `#pragma sst memoize [variables(v1,v2,…)] [meta_variables(m1,…)]` | Capture used variables; generate memoization function | [demo.cc](examples/pragmas/memoize/demo.cc) |
+| `memoize` | `#pragma sst memoize [variables(v1,v2,…)] [meta_variables(m1,…)]` | Capture used variables; generate memoization function | [demo.cc](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/memoize/demo.cc) |
 
 Compile with `hg++ --memoize -c demo.cc`.
 
@@ -563,7 +563,7 @@ Active in `--puppetize` and `--shadowize` modes.
 
 ### Replacement headers
 
-The [`replacements/`](replacements/) directory provides shadow implementations
+The [`replacements/`](https://github.com/sstsimulator/sst-hgcc/blob/main/replacements/) directory provides shadow implementations
 of libc, STL, pthread, MPI, and OpenMP headers. Inject them at compile time:
 
 ```bash
@@ -573,7 +573,7 @@ hg++ --replacements=pthread.h,mpi.h -c app.cc
 Common replacement headers: `pthread.h`, `vector`, `mutex`, `mpi.h`, `omp.h`,
 `malloc.h`, `unistd.h`.
 
-The [`replacements/libraries/`](replacements/libraries/) subdirectories carry
+The [`replacements/libraries/`](https://github.com/sstsimulator/sst-hgcc/blob/main/replacements/libraries/) subdirectories carry
 heavier shims used by Mercury-side library models:
 
 | Subdir | Provides |
@@ -610,7 +610,7 @@ patterns each `#pragma sst` rewrite must satisfy.
 ### Automatic skeletonization
 
 Even without pragmas, `ssthg_clang` performs default transforms in skeletonize
-mode ([`clang/astVisitor.cc`](clang/astVisitor.cc)):
+mode ([`clang/astVisitor.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/astVisitor.cc)):
 
 - Renames `main` to `sst_hg_user_main_*` and emits a Mercury wrapper
 - Strips or simplifies malloc/new allocations
@@ -621,7 +621,7 @@ mode ([`clang/astVisitor.cc`](clang/astVisitor.cc)):
 
 Run `hg++ --memoize` to capture variable types at pragma sites. The rewriter
 generates extern `"C"` memoization functions and includes
-[`clang/memoization/capture.h`](clang/memoization/capture.h).
+[`clang/memoization/capture.h`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/memoization/capture.h).
 
 ### Global variable hints
 
@@ -684,7 +684,7 @@ sst-hgcc/
 
 ### Testing
 
-- **Rewriter unit tests:** [`tests/lit-tests/`](tests/lit-tests/) — run with
+- **Rewriter unit tests:** [`tests/lit-tests/`](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/) — run with
   `lit -v tests/lit-tests` (see [tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md))
 - **Integration test:** `tests/test_tls.cc` — built and run via `make installcheck`
 - **Examples:** `make examples` compiles all example sources;
@@ -696,8 +696,8 @@ sst-hgcc/
 
 | Example | Type | Description |
 |---------|------|-------------|
-| [examples/mercury_hello/](examples/mercury_hello/) | SST runnable | Minimal two-rank MPI hello world |
-| [examples/mercury_hello_pragma/](examples/mercury_hello_pragma/) | SST runnable | Hello world with `advance_time` pragma |
-| [examples/pragmas/compute/demo_full/](examples/pragmas/compute/demo_full/) | SST runnable | MPI app with `#pragma sst compute` on a loop |
-| [examples/pragmas/blocking/demo_full/](examples/pragmas/blocking/demo_full/) | SST runnable | MPI app with `#pragma sst blocking` |
-| [examples/pragmas/memoize/](examples/pragmas/memoize/) | Compile-only | `#pragma sst memoize` capture demo (built with `--memoize`) |
+| [examples/mercury_hello/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/) | SST runnable | Minimal two-rank MPI hello world |
+| [examples/mercury_hello_pragma/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello_pragma/) | SST runnable | Hello world with `advance_time` pragma |
+| [examples/pragmas/compute/demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/compute/demo_full/) | SST runnable | MPI app with `#pragma sst compute` on a loop |
+| [examples/pragmas/blocking/demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/blocking/demo_full/) | SST runnable | MPI app with `#pragma sst blocking` |
+| [examples/pragmas/memoize/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/memoize/) | Compile-only | `#pragma sst memoize` capture demo (built with `--memoize`) |
