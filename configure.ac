@@ -3,8 +3,8 @@
 #
 
 # Version info
-m4_define([HGCC_VERSION_TAG], 1)
-m4_define([HGCC_SUBVERSION_TAG], 0)
+m4_define([HGCC_VERSION_TAG], 16)
+m4_define([HGCC_SUBVERSION_TAG], 1)
 m4_define([HGCC_SUBSUBVERSION_TAG], 0)
 
 dnl Enable this for releases
