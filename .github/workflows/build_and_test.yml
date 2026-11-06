@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['macos-14', 'ubuntu-24.04']
+        os: ['macos-26', 'ubuntu-26.04']
     env:
       INSTALL_PREFIX: ${{ github.workspace }}/install
     steps:
