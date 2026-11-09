@@ -21,7 +21,7 @@ jobs:
     uses: ./.github/workflows/build_and_test.yml
   all-tests:
     needs: [tests]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Success
         run: "true"

@@ -9,7 +9,7 @@ provides `hgcc` and `hg++` compiler wrappers plus an LLVM-based source rewriter
 HGCC is **not** a standalone MPI runtime. You need SST Core, sst-elements (with
 the Mercury/HG element), and LLVM/Clang with libTooling to build and use it.
 
-For step-by-step install commands, see [INSTALL.md](INSTALL.md).
+For step-by-step install commands, see [INSTALL.md](https://github.com/sstsimulator/sst-hgcc/blob/main/INSTALL.md).
 
 ## How it works
 
@@ -177,7 +177,7 @@ After `make install`, key paths under `$prefix` are:
 
 ## Building the examples
 
-The [`examples/`](examples/) directory contains documented Mercury apps and
+The [`examples/`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/) directory contains documented Mercury apps and
 `#pragma sst` demos. These are **optional** and kept separate from the main
 toolchain build so that a normal install stays fast and does not require a full
 Mercury/SST stack at compile time.
@@ -234,7 +234,7 @@ walkthrough below) without using the make targets at all.
 
 ## Building and Running a Mercury App
 
-This walkthrough uses [`examples/mercury_hello/`](examples/mercury_hello/), a
+This walkthrough uses [`examples/mercury_hello/`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/), a
 minimal two-rank MPI program.
 
 ### Step 1 — Write the application source
@@ -267,7 +267,7 @@ Key conventions:
   `sst_hg_user_main_<mangled>` and emits a wrapper that Mercury calls at load
   time.
 
-See [`examples/mercury_hello/hello.cc`](examples/mercury_hello/hello.cc).
+See [`examples/mercury_hello/hello.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/hello.cc).
 
 ### Step 2 — Compile and link
 
@@ -290,7 +290,7 @@ make examples
 
 The driver configures the simulated platform, network topology, and operating
 system parameters. See
-[`examples/mercury_hello/hello.py`](examples/mercury_hello/hello.py):
+[`examples/mercury_hello/hello.py`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/hello.py):
 
 ```python
 import os
@@ -335,7 +335,7 @@ Important OS parameters:
 | `app1.libraries` | Compute and MPI library bindings |
 
 The shared platform definition is in
-[`examples/platform_file_hg_test.py`](examples/platform_file_hg_test.py).
+[`examples/platform_file_hg_test.py`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/platform_file_hg_test.py).
 The annotated parameters below are the ones most worth tuning:
 
 | Param set | Key | Effect |
@@ -401,14 +401,14 @@ The minimum diff to take a working MPI program and run it under Mercury:
 3. **Build as a shared library.** Use `hg++ -c app.cc` then
    `hg++ app.o -o libapp.so`. HGCC never produces a standalone executable.
 4. **Write the SST Python driver.** Reuse
-   [`examples/platform_file_hg_test.py`](examples/platform_file_hg_test.py)
+   [`examples/platform_file_hg_test.py`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/platform_file_hg_test.py)
    and set `app1.name` and `app1.exe_library_name` to your `<name>`.
 5. **(Optional) Skeletonize hot loops.** Mark long compute regions with
    `#pragma sst compute` or `#pragma sst advance_time usec N` so the simulator
    models — rather than runs — them. Keep correctness-critical code under
    `#pragma sst keep`.
 
-[`examples/mercury_hello/hello.cc`](examples/mercury_hello/hello.cc) is the
+[`examples/mercury_hello/hello.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/hello.cc) is the
 canonical "after" baseline: ~15 lines covering items 1–3.
 
 ---
@@ -419,7 +419,7 @@ Pragmas let you control how `ssthg_clang` rewrites specific statements. They
 apply to the **next** statement or declaration.
 
 The extended example is in
-[`examples/mercury_hello_pragma/`](examples/mercury_hello_pragma/). It adds a
+[`examples/mercury_hello_pragma/`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello_pragma/). It adds a
 simulated time delay before printing:
 
 ```cpp
@@ -430,12 +430,12 @@ std::cerr << "Hello from rank " << rank << std::endl;
 ### How pragmas work
 
 1. During preprocessing, HGCC registers handlers for `#pragma sst <name>` via
-   `PragmaPPCallback` ([`clang/frontendActions.cc`](clang/frontendActions.cc)).
+   `PragmaPPCallback` ([`clang/frontendActions.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/frontendActions.cc)).
 2. Token capture records the pragma and the location of the next AST node
-   ([`clang/pragmas.cc`](clang/pragmas.cc)).
+   ([`clang/pragmas.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/pragmas.cc)).
 3. During AST traversal, `PragmaActivateGuard` matches pragmas to statements,
    calls `activate()` to rewrite the source, then `deactivate()` on scope exit
-   ([`clang/astVisitor.h`](clang/astVisitor.h)).
+   ([`clang/astVisitor.h`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/astVisitor.h)).
 4. For `advance_time usec 10`, the rewriter inserts `ssthg_usleep(10);`
    before the next statement, modeling compute delay in simulation.
 
@@ -449,7 +449,7 @@ sst examples/mercury_hello_pragma/hello_pragma.py
 
 The simulated time will be higher than the base hello example because of the
 inserted delay. See also
-[`examples/pragmas/advance_time/demo.cc`](examples/pragmas/advance_time/demo.cc).
+[`examples/pragmas/advance_time/demo.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/advance_time/demo.cc).
 
 ---
 
@@ -487,65 +487,65 @@ full SST-runnable demos are listed separately.
 
 | Pragma | Syntax | Description | Modes | Example |
 |--------|--------|-------------|-------|---------|
-| `delete` | `#pragma sst delete` | Remove the next statement/declaration | skeletonize, shadowize | `#pragma sst delete`<br>`x = expensive();` |
-| `instead` | `#pragma sst instead <code>` | Replace next statement with verbatim code | skeletonize, puppetize, shadowize | `#pragma sst instead {y = 0;}`<br>`y = expensive();` |
-| `init` | `#pragma sst init <expr>` | Rewrite initializer or assignment RHS | skeletonize, puppetize, shadowize | `#pragma sst init 0`<br>`int x = expensive();` |
-| `replace` | `#pragma sst replace <id> <repl>` | Replace uses of `<id>` with `<repl>` | skeletonize, puppetize, shadowize | `#pragma sst replace x y`<br>`int z = x + 1;` |
-| `empty` | `#pragma sst empty [<body>]` | Replace function body with `{<body>}` | skeletonize, shadowize | `#pragma sst empty`<br>`void f() { /* body */ }` |
-| `return` | `#pragma sst return <expr>` | Replace function body or return stmt | skeletonize, shadowize, puppetize | `#pragma sst return 0`<br>`int f() { /* body */ }` |
-| `malloc` | `#pragma sst malloc` | Rewrite malloc init to null buffer | skeletonize, shadowize | `#pragma sst malloc`<br>`int* p = (int*)malloc(N);` |
-| `new` | `#pragma sst new` | Collapse C++ `new` to `nullptr` | skeletonize, shadowize | `#pragma sst new`<br>`T* p = new T[N];` |
-| `null_type` | `#pragma sst null_type [<type> [except…]]` | Replace variable/field type | skeletonize, shadowize | `#pragma sst null_type`<br>`Heavy h;` |
-| `assume_true` | `#pragma sst assume_true` | Force next `if` condition to `true` | skeletonize, shadowize, puppetize | `#pragma sst assume_true`<br>`if (cond) { … }` |
-| `assume_false` | `#pragma sst assume_false` | Force next `if` condition to `false` | skeletonize, shadowize, puppetize | `#pragma sst assume_false`<br>`if (cond) { … }` |
-| `loop_count` | `#pragma sst loop_count <N>` | Rewrite loop to iterate exactly N times | skeletonize, puppetize, shadowize | `#pragma sst loop_count 8`<br>`for (int i=0; i<N; ++i) …` |
+| `delete` | `#pragma sst delete` | Remove the next statement/declaration | skeletonize, shadowize | `#pragma sst delete`<br/>`x = expensive();` |
+| `instead` | `#pragma sst instead <code>` | Replace next statement with verbatim code | skeletonize, puppetize, shadowize | `#pragma sst instead {y = 0;}`<br/>`y = expensive();` |
+| `init` | `#pragma sst init <expr>` | Rewrite initializer or assignment RHS | skeletonize, puppetize, shadowize | `#pragma sst init 0`<br/>`int x = expensive();` |
+| `replace` | `#pragma sst replace <id> <repl>` | Replace uses of `<id>` with `<repl>` | skeletonize, puppetize, shadowize | `#pragma sst replace x y`<br/>`int z = x + 1;` |
+| `empty` | `#pragma sst empty [<body>]` | Replace function body with `{<body>}` | skeletonize, shadowize | `#pragma sst empty`<br/>`void f() { /* body */ }` |
+| `return` | `#pragma sst return <expr>` | Replace function body or return stmt | skeletonize, shadowize, puppetize | `#pragma sst return 0`<br/>`int f() { /* body */ }` |
+| `malloc` | `#pragma sst malloc` | Rewrite malloc init to null buffer | skeletonize, shadowize | `#pragma sst malloc`<br/>`int* p = (int*)malloc(N);` |
+| `new` | `#pragma sst new` | Collapse C++ `new` to `nullptr` | skeletonize, shadowize | `#pragma sst new`<br/>`T* p = new T[N];` |
+| `null_type` | `#pragma sst null_type [<type> [except…]]` | Replace variable/field type | skeletonize, shadowize | `#pragma sst null_type`<br/>`Heavy h;` |
+| `assume_true` | `#pragma sst assume_true` | Force next `if` condition to `true` | skeletonize, shadowize, puppetize | `#pragma sst assume_true`<br/>`if (cond) { … }` |
+| `assume_false` | `#pragma sst assume_false` | Force next `if` condition to `false` | skeletonize, shadowize, puppetize | `#pragma sst assume_false`<br/>`if (cond) { … }` |
+| `loop_count` | `#pragma sst loop_count <N>` | Rewrite loop to iterate exactly N times | skeletonize, puppetize, shadowize | `#pragma sst loop_count 8`<br/>`for (int i=0; i<N; ++i) …` |
 
 ### Null-pointer and field skeletonization
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `null_ptr` | `#pragma sst null_ptr [options…]` | Mark pointers as null; rewrite uses. Options: `replace(...)`, `target(...)`, `except(...)`, `only(...)`, `safe`, `delete_all`, `skel_compute` | `#pragma sst null_ptr replace(nullptr)`<br>`int* p = malloc(n);` |
-| `null_fields` | `#pragma sst null_fields <field> …` | Mark listed struct fields as null | `#pragma sst null_fields buf`<br>`struct S { int* buf; };` |
-| `nonnull_fields` | `#pragma sst nonnull_fields <field> …` | Keep only listed fields; skeletonize others | `#pragma sst nonnull_fields id`<br>`struct S { int id; int* buf; };` |
+| `null_ptr` | `#pragma sst null_ptr [options…]` | Mark pointers as null; rewrite uses. Options: `replace(...)`, `target(...)`, `except(...)`, `only(...)`, `safe`, `delete_all`, `skel_compute` | `#pragma sst null_ptr replace(nullptr)`<br/>`int* p = malloc(n);` |
+| `null_fields` | `#pragma sst null_fields <field> …` | Mark listed struct fields as null | `#pragma sst null_fields buf`<br/>`struct S { int* buf; };` |
+| `nonnull_fields` | `#pragma sst nonnull_fields <field> …` | Keep only listed fields; skeletonize others | `#pragma sst nonnull_fields id`<br/>`struct S { int id; int* buf; };` |
 
 ### Compute skeletonization
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `compute` | `#pragma sst compute` | Skeletonize next loop/if/body into simulated compute ops | [demo_full/](examples/pragmas/compute/demo_full/) |
-| `always_compute` | `#pragma sst always_compute` | Same as `compute`; also active in encapsulate mode | `#pragma sst always_compute`<br>`for (i=0; i<N; ++i) acc += i;` |
-| `memory` | `#pragma sst memory <spec>` | Attach memory-intensity metadata (no direct rewrite) | `#pragma sst memory 1.5`<br>`for (i=0; i<N; ++i) a[i] = b[i];` |
-| `omp parallel` | `#pragma omp parallel [num_threads(N)]` | Treated as compute with thread count | `#pragma omp parallel num_threads(4)`<br>`{ /* work */ }` |
+| `compute` | `#pragma sst compute` | Skeletonize next loop/if/body into simulated compute ops | [demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/compute/demo_full/) |
+| `always_compute` | `#pragma sst always_compute` | Same as `compute`; also active in encapsulate mode | `#pragma sst always_compute`<br/>`for (i=0; i<N; ++i) acc += i;` |
+| `memory` | `#pragma sst memory <spec>` | Attach memory-intensity metadata (no direct rewrite) | `#pragma sst memory 1.5`<br/>`for (i=0; i<N; ++i) a[i] = b[i];` |
+| `omp parallel` | `#pragma omp parallel [num_threads(N)]` | Treated as compute with thread count | `#pragma omp parallel num_threads(4)`<br/>`{ /* work */ }` |
 
 ### Simulation timing and instrumentation
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `advance_time` | `#pragma sst advance_time <unit> <amount>` | Insert time advance (`sec`, `msec`, `usec`, `nsec`) | `#pragma sst advance_time usec 10`<br>`do_work();` |
-| `overhead` | `#pragma sst overhead <param>` | Insert `ssthg_advance_time("<param>")` | `#pragma sst overhead launch_overhead`<br>`kernel();` |
-| `blocking` | `#pragma sst blocking api(<name>) [condition(<expr>)] [timeout(<expr>)]` | Insert `sst_hg_blocking_call(...)` | [demo_full/](examples/pragmas/blocking/demo_full/) |
-| `call` | `#pragma sst call <tokens>` | Insert verbatim function call before next stmt | `#pragma sst call ssthg_log("hi")`<br>`work();` |
-| `stack_alloc` | `#pragma sst stack_alloc alloc(<size>[,<mdata>])` or `free(<var>)` | Stack allocation simulation hooks | `#pragma sst stack_alloc alloc(4096)`<br>`char buf[4096];` |
+| `advance_time` | `#pragma sst advance_time <unit> <amount>` | Insert time advance (`sec`, `msec`, `usec`, `nsec`) | `#pragma sst advance_time usec 10`<br/>`do_work();` |
+| `overhead` | `#pragma sst overhead <param>` | Insert `ssthg_advance_time("<param>")` | `#pragma sst overhead launch_overhead`<br/>`kernel();` |
+| `blocking` | `#pragma sst blocking api(<name>) [condition(<expr>)] [timeout(<expr>)]` | Insert `sst_hg_blocking_call(...)` | [demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/blocking/demo_full/) |
+| `call` | `#pragma sst call <tokens>` | Insert verbatim function call before next stmt | `#pragma sst call ssthg_log("hi")`<br/>`work();` |
+| `stack_alloc` | `#pragma sst stack_alloc alloc(<size>[,<mdata>])` or `free(<var>)` | Stack allocation simulation hooks | `#pragma sst stack_alloc alloc(4096)`<br/>`char buf[4096];` |
 
 ### Preservation
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `keep` | `#pragma sst keep` | Leave next statement untouched by skeletonization | `#pragma sst keep`<br>`return real_value;` |
-| `keep_if` | `#pragma sst keep_if <cond>` | Wrap next stmt in `if (<cond>) { … }` | `#pragma sst keep_if rank==0`<br>`printf("hi\n");` |
+| `keep` | `#pragma sst keep` | Leave next statement untouched by skeletonization | `#pragma sst keep`<br/>`return real_value;` |
+| `keep_if` | `#pragma sst keep_if <cond>` | Wrap next stmt in `if (<cond>) { … }` | `#pragma sst keep_if rank==0`<br/>`printf("hi\n");` |
 
 ### Metadata
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `global` | `#pragma sst global <name>` | Mark a name as a dependent-scope global | `#pragma sst global gv`<br>`return gv;` |
-| `branch_predict` | `#pragma sst branch_predict <prob>` | Store branch probability on next `if` | `#pragma sst branch_predict 0.95`<br>`if (likely) { … }` |
+| `global` | `#pragma sst global <name>` | Mark a name as a dependent-scope global | `#pragma sst global gv`<br/>`return gv;` |
+| `branch_predict` | `#pragma sst branch_predict <prob>` | Store branch probability on next `if` | `#pragma sst branch_predict 0.95`<br/>`if (likely) { … }` |
 
 ### Memoization
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `memoize` | `#pragma sst memoize [variables(v1,v2,…)] [meta_variables(m1,…)]` | Capture used variables; generate memoization function | [demo.cc](examples/pragmas/memoize/demo.cc) |
+| `memoize` | `#pragma sst memoize [variables(v1,v2,…)] [meta_variables(m1,…)]` | Capture used variables; generate memoization function | [demo.cc](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/memoize/demo.cc) |
 
 Compile with `hg++ --memoize -c demo.cc`.
 
@@ -553,7 +553,7 @@ Compile with `hg++ --memoize -c demo.cc`.
 
 | Pragma | Syntax | Description | Example |
 |--------|--------|-------------|---------|
-| `placeholder` | `#pragma sst placeholder tool(<toolstr>)` | Insert LLVM `annotate` attribute on enclosing function | `#pragma sst placeholder tool("dyninst")`<br>`void hot() { … }` |
+| `placeholder` | `#pragma sst placeholder tool(<toolstr>)` | Insert LLVM `annotate` attribute on enclosing function | `#pragma sst placeholder tool("dyninst")`<br/>`void hot() { … }` |
 
 Active in `--puppetize` and `--shadowize` modes.
 
@@ -563,7 +563,7 @@ Active in `--puppetize` and `--shadowize` modes.
 
 ### Replacement headers
 
-The [`replacements/`](replacements/) directory provides shadow implementations
+The [`replacements/`](https://github.com/sstsimulator/sst-hgcc/blob/main/replacements/) directory provides shadow implementations
 of libc, STL, pthread, MPI, and OpenMP headers. Inject them at compile time:
 
 ```bash
@@ -573,7 +573,7 @@ hg++ --replacements=pthread.h,mpi.h -c app.cc
 Common replacement headers: `pthread.h`, `vector`, `mutex`, `mpi.h`, `omp.h`,
 `malloc.h`, `unistd.h`.
 
-The [`replacements/libraries/`](replacements/libraries/) subdirectories carry
+The [`replacements/libraries/`](https://github.com/sstsimulator/sst-hgcc/blob/main/replacements/libraries/) subdirectories carry
 heavier shims used by Mercury-side library models:
 
 | Subdir | Provides |
@@ -604,13 +604,13 @@ static int _reg = userSkeletonMainInitFxn("hello", sst_hg_user_main_hello);
 ```
 
 The lit suite uses exactly this output for `FileCheck` assertions; see
-[tests/lit-tests/README.md](tests/lit-tests/README.md) for the FileCheck
+[tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md) for the FileCheck
 patterns each `#pragma sst` rewrite must satisfy.
 
 ### Automatic skeletonization
 
 Even without pragmas, `ssthg_clang` performs default transforms in skeletonize
-mode ([`clang/astVisitor.cc`](clang/astVisitor.cc)):
+mode ([`clang/astVisitor.cc`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/astVisitor.cc)):
 
 - Renames `main` to `sst_hg_user_main_*` and emits a Mercury wrapper
 - Strips or simplifies malloc/new allocations
@@ -621,7 +621,7 @@ mode ([`clang/astVisitor.cc`](clang/astVisitor.cc)):
 
 Run `hg++ --memoize` to capture variable types at pragma sites. The rewriter
 generates extern `"C"` memoization functions and includes
-[`clang/memoization/capture.h`](clang/memoization/capture.h).
+[`clang/memoization/capture.h`](https://github.com/sstsimulator/sst-hgcc/blob/main/clang/memoization/capture.h).
 
 ### Global variable hints
 
@@ -642,7 +642,7 @@ If HGCC cannot determine whether a variable is global, it may suggest:
 | At simulation time: `userSkeletonMainInitFxn: unknown app "<name>"` | `app1.name` / `app1.exe_library_name` don't match the `ssthg_app_name` you compiled with — or `lib<name>.so` isn't on `SST_ELEMENT_LIBRARY_EXT_LIBDIR`. Re-run `make install-examples` or copy the `.so` manually |
 | Rewriter warning *"could not determine if `X` is global"* | Add `#pragma sst global X` inside the dependent scope so the rewriter can privatize it |
 | macOS linker errors about missing symbols / wrong arch | Export `SDKROOT=$(xcrun --sdk macosx --show-sdk-path)` and `LDFLAGS="-fuse-ld=lld"` before configuring |
-| `make check` skips with "lit not installed" | `pip install lit` and point `$FILECHECK` at an LLVM `FileCheck` binary. See [tests/lit-tests/README.md](tests/lit-tests/README.md) |
+| `make check` skips with "lit not installed" | `pip install lit` and point `$FILECHECK` at an LLVM `FileCheck` binary. See [tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md) |
 | `.so` builds but `sst app.py` says `library not found` | The `.so` must live under `$SST_ELEMENT_LIBRARY_EXT_LIBDIR` (or whatever `sst-config --ELEMENT_LIB_PATH` reports); `make install-examples` handles this for the bundled demos |
 
 ---
@@ -684,8 +684,8 @@ sst-hgcc/
 
 ### Testing
 
-- **Rewriter unit tests:** [`tests/lit-tests/`](tests/lit-tests/) — run with
-  `lit -v tests/lit-tests` (see [tests/lit-tests/README.md](tests/lit-tests/README.md))
+- **Rewriter unit tests:** [`tests/lit-tests/`](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/) — run with
+  `lit -v tests/lit-tests` (see [tests/lit-tests/README.md](https://github.com/sstsimulator/sst-hgcc/blob/main/tests/lit-tests/README.md))
 - **Integration test:** `tests/test_tls.cc` — built and run via `make installcheck`
 - **Examples:** `make examples` compiles all example sources;
   `make install-examples` installs runnable `.so` files;
@@ -696,8 +696,8 @@ sst-hgcc/
 
 | Example | Type | Description |
 |---------|------|-------------|
-| [examples/mercury_hello/](examples/mercury_hello/) | SST runnable | Minimal two-rank MPI hello world |
-| [examples/mercury_hello_pragma/](examples/mercury_hello_pragma/) | SST runnable | Hello world with `advance_time` pragma |
-| [examples/pragmas/compute/demo_full/](examples/pragmas/compute/demo_full/) | SST runnable | MPI app with `#pragma sst compute` on a loop |
-| [examples/pragmas/blocking/demo_full/](examples/pragmas/blocking/demo_full/) | SST runnable | MPI app with `#pragma sst blocking` |
-| [examples/pragmas/memoize/](examples/pragmas/memoize/) | Compile-only | `#pragma sst memoize` capture demo (built with `--memoize`) |
+| [examples/mercury_hello/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello/) | SST runnable | Minimal two-rank MPI hello world |
+| [examples/mercury_hello_pragma/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/mercury_hello_pragma/) | SST runnable | Hello world with `advance_time` pragma |
+| [examples/pragmas/compute/demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/compute/demo_full/) | SST runnable | MPI app with `#pragma sst compute` on a loop |
+| [examples/pragmas/blocking/demo_full/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/blocking/demo_full/) | SST runnable | MPI app with `#pragma sst blocking` |
+| [examples/pragmas/memoize/](https://github.com/sstsimulator/sst-hgcc/blob/main/examples/pragmas/memoize/) | Compile-only | `#pragma sst memoize` capture demo (built with `--memoize`) |
